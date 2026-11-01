@@ -162,17 +162,51 @@ h1 {
     border: 4px solid var(--cw-clay);
 }
 
+/* The player is drawn from a SPRITE SHEET: one image with every frame side by side.
+   img/sprites/player-sheet.png has 4 frames, each 21px wide and 40px tall:
+     0px     -21px     -42px     -63px    <- background-position for each frame
+   [ idle ] [ walk 1 ] [ walk 2 ] [ walk 3 ]
+   The box only shows one frame at a time. Changing background-position
+   slides the sheet left so a different frame shows through the box.
+   (The image file is twice this size so it looks sharp on high-resolution screens.
+   background-size shrinks it to fit.) */
 #player {
-    font-size: 40px;
+    width: 21px;
+    height: 40px;
+    background: url('img/sprites/player-sheet.png') 0 0 / 84px 40px no-repeat; /* 84px = 4 frames x 21px */
     z-index: 5; /* keep the player drawn on top of houses and trees */
+}
+
+/* script.js adds .walking while the player is moving */
+#player.walking {
+    /* step-end jumps straight from frame to frame instead of sliding between them */
+    animation: player-walk 0.5s step-end infinite;
+}
+
+/* The walk cycle: walk 1, walk 2, walk 1, walk 3, then repeat.
+   Walk 1 is the "feet together" pose, so it goes between the two strides. */
+@keyframes player-walk {
+    0%   { background-position: -21px 0; } /* walk 1 */
+    25%  { background-position: -42px 0; } /* walk 2 */
+    50%  { background-position: -21px 0; } /* walk 1 */
+    75%  { background-position: -63px 0; } /* walk 3 */
+    100% { background-position: -21px 0; }
+}
+
+/* The art faces right. To face left, flip the player like a mirror.
+   We have to repeat translate(-50%, -50%) from .sprite, or this would replace it.
+   The water can is inside #player, so it flips over to the other hand too. */
+#player.facing-left {
+    transform: translate(-50%, -50%) scaleX(-1);
 }
 
 /* The water can the player holds (positioned relative to the player) */
 #carry-icon {
     position: absolute;
-    left: 22px;
-    top: 4px;
-    width: 46px; /* the image has empty space around the can, so it looks smaller than this */
+    /* Hangs from the player's front hand (the player is 21 x 40) */
+    left: 5px;
+    top: 16px;
+    width: 30px; /* the image has empty space around the can, so it looks smaller than this */
     filter: drop-shadow(0 0 2px #000); /* outline so the yellow can shows up on the grass */
 }
 
@@ -181,10 +215,10 @@ h1 {
 #player.carrying-dirty::after {
     content: '';
     position: absolute;
-    left: 56px;
-    top: 0;
-    width: 12px;
-    height: 12px;
+    left: 24px; /* just above the can */
+    top: 9px;
+    width: 8px;
+    height: 8px;
     background: var(--mud);
     border: 2px solid #000;
     border-radius: 0 50% 50% 50%; /* rounded on 3 corners = a drop shape */

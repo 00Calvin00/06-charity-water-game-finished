@@ -125,7 +125,9 @@ function createStartingState() {
         // Later, villagers will use this same shape.
         // carrying is null (empty bucket), 'clean' or 'dirty'.
         // target is the spot the player is walking to after a tap/click: { x, y }, or null.
-        player: { id: 'player', x: HOME_POSITION.x, y: HOME_POSITION.y, carrying: null, target: null, task: null },
+        // moving is true while the player is walking (plays the walk animation).
+        // facing is 'right' or 'left' (the way they last walked).
+        player: { id: 'player', x: HOME_POSITION.x, y: HOME_POSITION.y, carrying: null, target: null, task: null, moving: false, facing: 'right' },
 
         // Wells and pumps built in the village. They're drawn on the map with the houses and trees.
         // Empty at the start; charity: water's pump is added when you win.
@@ -253,6 +255,11 @@ function renderPlayer() {
 
     // Show a little brown drop next to the can when the water is dirty
     playerEl.classList.toggle('carrying-dirty', state.player.carrying === 'dirty');
+
+    // Play the walk animation while moving, and flip the sprite when facing left
+    // (the animation and the flip are both done in styles.css)
+    playerEl.classList.toggle('walking', state.player.moving);
+    playerEl.classList.toggle('facing-left', state.player.facing === 'left');
 }
 
 // Distance in pixels between two things that have x and y (like the player and a house).
@@ -413,9 +420,21 @@ function movePlayer() {
         }
     }
 
+    // Remember where the player was, to check below if they really moved
+    const oldX = state.player.x;
+    const oldY = state.player.y;
+
     // Move, but keep the player inside the game box
     state.player.x = clamp(state.player.x + dx, PLAYER_HALF_SIZE, GAME_WIDTH - PLAYER_HALF_SIZE);
     state.player.y = clamp(state.player.y + dy, PLAYER_HALF_SIZE, GAME_HEIGHT - PLAYER_HALF_SIZE);
+
+    // Only count it as walking if the position changed
+    // (pushing against the edge of the map shouldn't play the walk animation)
+    state.player.moving = state.player.x !== oldX || state.player.y !== oldY;
+
+    // Face the way we're walking. Walking straight up or down keeps the old direction.
+    if (dx < 0) state.player.facing = 'left';
+    if (dx > 0) state.player.facing = 'right';
 
     renderPlayer();
 }
@@ -633,6 +652,7 @@ function startNight() {
     state.player.x = HOME_POSITION.x;
     state.player.y = HOME_POSITION.y;
     state.player.target = null;
+    state.player.moving = false; // standing still at home
 
     // Any water still in the bucket spills on the way home (it's a hard life!)
     state.player.carrying = null;
@@ -706,6 +726,10 @@ function checkWinLose() {
 function loseGame() {
     state.phase = 'lost';
     clearInterval(loopId); // stop the game loop
+
+    // The loop has stopped, so stop the walk animation too
+    state.player.moving = false;
+    renderPlayer();
 
     const dayWord = state.day === 1 ? 'day' : 'days';
     loseMessageEl.textContent = `Your village ran out of water after ${state.day} ${dayWord}. You carried ${state.litersDelivered} liters of clean water home.`;
