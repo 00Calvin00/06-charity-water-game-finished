@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Get The Water!</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Go Get The Water!</h1>
+
+    <!-- The wrapper takes up exactly the space of the game AFTER it's scaled to fit the screen
+         (script.js sets its size in fitGameToScreen) -->
+    <div id="game-wrapper">
+
+    <!-- The game box. Everything inside is positioned relative to this box.
+         "not-started" makes the world gray and faded until Start is clicked (see styles.css). -->
+    <main id="game" class="not-started">
+
+        <!-- The world: houses, trees and the water hole get added here by script.js -->
+        <div id="world"></div>
+
+        <!-- The player character. The water can only shows while carrying water. -->
+        <div id="player" class="sprite">🧍<img id="carry-icon" class="hidden" src="img/water-can-transparent.png" alt="Carrying water"></div>
+
+        <!-- Hint that appears above the player (e.g. "Press ENTER to collect water").
+             It's a button so it can also be clicked or tapped. -->
+        <button id="prompt" class="hidden"></button>
+
+        <!-- Dark blue layer that fades in at night (HUD stays bright on top of it) -->
+        <div id="night-overlay"></div>
+
+        <!-- Message text at the top of the game (tutorial, night, help has arrived).
+             aria-live makes screen readers read new messages out loud. -->
+        <div id="message-box" class="hidden" aria-live="polite"></div>
+
+        <!-- HUD (heads-up display): sits on top of the world -->
+        <div id="hud">
+
+            <!-- Daylight tracker: the yellow bar shrinks as the day goes on -->
+            <div id="day-tracker">
+                <span class="hud-icon">☀️</span>
+                <div id="day-bar">
+                    <div id="day-fill"></div>
+                </div>
+                <span class="hud-icon">🌙</span>
+            </div>
+
+            <!-- Village water level: the blue bar shrinks as water is used up -->
+            <div id="water-tracker">
+                <div id="water-bar">
+                    <div id="water-fill"></div>
+                </div>
+                <!-- The score: script.js updates the number every tick -->
+                <span class="hud-label">Water Level: <span id="water-percent">60%</span></span>
+            </div>
+
+            <!-- How many days the village has survived -->
+            <div id="day-counter" class="hud-label">Day 1</div>
+        </div>
+
+        <!-- Start screen: showing when the page loads, hidden when Start is clicked -->
+        <div id="start-screen" class="overlay">
+            <h2>Go Get The Water!</h2>
+            <p>Your village needs water to survive. Walk to the water hole, fill your bucket and bring it home before the water runs out.</p>
+            <p class="controls-help">
+                Move: arrow keys, WASD, or tap/click where you want to walk.<br>
+                Collect &amp; deliver: ENTER, or tap/click the hint above your head.
+            </p>
+            <button id="start-btn">Start</button>
+        </div>
+
+        <!-- Lose screen: hidden until the water runs out.
+             (&nbsp; is a "non-breaking space": it keeps "charity: water" on one line,
+             which the brand guide asks for.) -->
+        <div id="lose-screen" class="overlay hidden">
+            <h2>Out of water!</h2>
+            <p id="lose-message"></p>
+            <p class="fact">
+                For millions of families, this walk is daily life. In 8 out of 10 households,
+                women and girls are the ones who collect the water.
+                charity:&nbsp;water builds wells so they don't have to.
+            </p>
+            <a class="learn-more" href="https://www.charitywater.org" target="_blank" rel="noopener">Learn how you can help</a>
+            <button id="try-again-btn">Try Again</button>
+        </div>
+
+        <!-- Win screen: hidden until charity: water builds the pump -->
+        <div id="win-screen" class="overlay hidden">
+            <h2>Your village has clean water!</h2>
+            <!-- The brand guide says the logo goes on plain white or black, never on top of the game -->
+            <div class="logo-card">
+                <img src="img/cw_logo_horizontal.png" alt="charity: water">
+            </div>
+            <p id="win-message"></p>
+            <p class="fact">In Africa alone, women spend 40 billion hours a year walking for water.</p>
+            <a class="learn-more" href="https://www.charitywater.org" target="_blank" rel="noopener">Learn more about charity:&nbsp;water</a>
+            <button id="play-again-btn">Play Again</button>
+        </div>
+    </main>
+    </div>
+
+    <!-- Controls under the game box (outside #game so they never cover the map) -->
+    <div id="controls-bar">
+        <button id="reset-btn">Reset</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
