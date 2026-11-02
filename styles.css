@@ -37,13 +37,22 @@ body {
     margin: 0;
     min-height: 100vh;
     background: var(--page-bg);
-    font-family: Arial, Helvetica, sans-serif;
+    /* charity: water's brand font is Proxima Nova; their brand guide says to use Avenir
+       when it isn't available. The browser uses the first font in this list that it has:
+       Proxima Nova (if installed), then Avenir (on Macs, iPhones and iPads), then
+       Montserrat (loaded in index.html, a free look-alike for everyone else). */
+    font-family: 'Proxima Nova', 'Avenir Next', Avenir, Montserrat, Arial, sans-serif;
     color: var(--cw-yellow);
 
     /* Center the title and game box on the page */
     display: flex;
     flex-direction: column;
     align-items: center;
+}
+
+/* Buttons don't use the page's font unless we tell them to */
+button {
+    font-family: inherit;
 }
 
 h1 {
@@ -656,6 +665,30 @@ h1 {
 /* ---------- Controls under the game box ---------- */
 #controls-bar {
     margin: 16px 0 24px;
+}
+
+/* ---------- Footer (charity: water links, under the game) ---------- */
+#site-footer {
+    max-width: 640px;
+    margin: 0 16px 32px;
+    text-align: center;
+    color: var(--cw-cream);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.footer-links {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap; /* on narrow screens the links go onto two lines instead of squishing */
+    gap: 12px 28px;
+    margin-top: 8px;
+}
+
+.footer-links a {
+    color: var(--cw-yellow);
+    font-weight: bold;
+    text-underline-offset: 3px;
 }
 
 #reset-btn {

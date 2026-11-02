@@ -50,7 +50,7 @@ const OBJECT_TYPES = {
     'dirty-hole': { flat: true, footprint: { width: 104, height: 56 } }
 };
 
-const DRAIN_PER_SECOND = 1;        // how much village water is used up each second during the day (out of 100)
+const DRAIN_PER_SECOND = 1.25;     // how much village water is used up each second during the day (out of 100)
 const NIGHT_DRAIN_PER_SECOND = 0.5; // water still gets used at night, just less
 const LOW_WATER_LEVEL = 25;  // below this, the water bar turns red as a warning
 

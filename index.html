@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Go Get The Water!</title>
+    <!-- Montserrat: a free font that looks like charity: water's brand font (Proxima Nova).
+         It's only used on computers that don't have Proxima Nova or Avenir (see body in styles.css). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -129,6 +134,15 @@
     <div id="controls-bar">
         <button id="reset-btn">Reset</button>
     </div>
+
+    <!-- Footer: links to charity: water. They open in a new tab, so the game keeps its place. -->
+    <footer id="site-footer">
+        <p>For millions of people, this walk is real. charity:&nbsp;water brings clean water to communities that need it.</p>
+        <nav class="footer-links">
+            <a href="https://www.charitywater.org" target="_blank" rel="noopener">Learn about charity:&nbsp;water</a>
+            <a href="https://www.charitywater.org/donate" target="_blank" rel="noopener">Donate</a>
+        </nav>
+    </footer>
 
     <!-- map-generator.js first: script.js uses it to build a new map for every game -->
     <script src="map-generator.js"></script>
