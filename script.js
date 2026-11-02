@@ -93,16 +93,6 @@ const SOUNDS = {
 // Brand colors for the confetti
 const CONFETTI_COLORS = ['#FFC907', '#003366', '#77A8BB', '#FED8C1', '#BF6C46', '#FFF7E1'];
 
-// Which emoji to show for each type of map object.
-// The water hole is drawn with CSS, so it has no emoji.
-const SPRITES = {
-    house: '🛖',
-    tree: '🌳',
-    'water-hole': '',
-    'dirty-hole': '', // also drawn with CSS
-    pump: '' // drawn with an image in styles.css
-};
-
 // =====================================================
 // 2. GAME STATE (everything that changes while playing)
 // =====================================================
@@ -230,6 +220,8 @@ const waterPercentEl = document.getElementById('water-percent');
 // =====================================================
 
 // Draw every object in a map (an array of { type, x, y }) into the world.
+// Each object is an empty <div>. Its class (like "sprite house") gives it
+// its size and picture in styles.css.
 function renderWorld(mapData) {
     // Remove whatever was drawn before
     worldEl.innerHTML = '';
@@ -237,7 +229,6 @@ function renderWorld(mapData) {
     mapData.forEach((item) => {
         const el = document.createElement('div');
         el.className = `sprite ${item.type}`;
-        el.textContent = SPRITES[item.type];
         el.style.left = `${item.x}px`;
         el.style.top = `${item.y}px`;
         worldEl.appendChild(el);

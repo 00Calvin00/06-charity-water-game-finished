@@ -115,8 +115,13 @@ h1 {
 /* ---------- Sprites (houses, trees, player) ---------- */
 .sprite {
     position: absolute;
-    font-size: 44px;
-    line-height: 1;
+
+    /* Every map object is a picture from img/sprites/.
+       contain = fit the whole image inside the box without stretching it.
+       Each type below only needs its own size and image file. */
+    background-position: center;
+    background-size: contain;
+    background-repeat: no-repeat;
 
     /* Move the sprite up and left by half its size,
        so its left/top values point to its CENTER instead of its corner.
@@ -125,41 +130,37 @@ h1 {
     user-select: none;
 }
 
+/* The image files are twice these sizes so they look sharp on high-resolution screens */
 .house {
-    font-size: 52px;
+    width: 52px;
+    height: 44px;
+    background-image: url('img/sprites/house.png');
 }
 
 .tree {
-    font-size: 48px;
+    width: 47px;
+    height: 48px;
+    background-image: url('img/sprites/tree.png');
 }
 
-/* The water pump is drawn with an image (transparent background) */
+/* The water pump charity: water builds when you win */
 .pump {
-    width: 56px;
+    width: 58px;
     height: 67px;
-    /* contain = fit the whole image inside without stretching it */
-    background: url('img/water-pump.png') center / contain no-repeat;
+    background-image: url('img/sprites/pump.png');
 }
 
-/* Water holes are drawn with CSS instead of an emoji.
-   Both kinds share the same blob shape... */
-.water-hole,
-.dirty-hole {
-    width: 130px;
-    height: 85px;
-    /* Uneven corner values make a "blob" shape instead of a perfect oval */
-    border-radius: 55% 45% 60% 40% / 50% 60% 40% 50%;
-}
-
-/* ...but have different colors */
+/* Water holes: clean and blue, or muddy and dirty */
 .water-hole {
-    background: var(--clean-water);
-    border: 4px solid var(--cw-navy);
+    width: 138px;
+    height: 87px;
+    background-image: url('img/sprites/pond-clean.png');
 }
 
 .dirty-hole {
-    background: var(--mud);
-    border: 4px solid var(--cw-clay);
+    width: 138px;
+    height: 91px;
+    background-image: url('img/sprites/pond-dirty.png');
 }
 
 /* The player is drawn from a SPRITE SHEET: one image with every frame side by side.
