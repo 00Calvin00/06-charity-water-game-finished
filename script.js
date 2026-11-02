@@ -994,8 +994,13 @@ function winGame() {
     const pumpSpot = findSpot(state.map.concat(state.wells), 'pump', () =>
         spotAround(HOME_POSITION, randomBetween(0, FULL_CIRCLE), randomBetween(60, VILLAGE_RADIUS))
     ) || { x: HOME_POSITION.x + 50, y: HOME_POSITION.y };
-    state.wells.push({ type: 'pump', x: pumpSpot.x, y: pumpSpot.y });
+    const pump = { type: 'pump', x: pumpSpot.x, y: pumpSpot.y };
+    state.wells.push(pump);
     renderWorld(state.map.concat(state.wells));
+
+    // Sparkle around the new pump, the same way the water bar sparkles when water is delivered.
+    // (renderWorld saved the pump's <div> in pump.el.)
+    showStars(pump.el);
     showMessage(`Help has arrived! ${BRAND_NAME} built a water pump for your village!`);
     playSound(SOUNDS.win);
     console.log('You win! charity: water built a pump.');

@@ -573,6 +573,12 @@ h1 {
     animation: twinkle 0.9s ease-out forwards;
 }
 
+/* The pump is much smaller than the water bar, so its stars are smaller too
+   (otherwise they'd cover the pump). Same twinkle, just a smaller size. */
+.pump .star {
+    font-size: 12px;
+}
+
 /* Pop in, spin a little, and fade away */
 @keyframes twinkle {
     0%   { opacity: 0; transform: scale(0.3) rotate(0deg); }
