@@ -25,8 +25,24 @@ const CLICK_WALK_SPEED = 3; // pixels per tick when walking to a tapped/clicked 
 const PLAYER_WIDTH = 21;  // must match #player in styles.css
 const PLAYER_HEIGHT = 40; // (used to keep the player inside the world and center the camera on them)
 
-// Water holes lie flat on the ground, so they're always drawn underneath everything else
-const FLAT_TYPES = ['water-hole', 'dirty-hole'];
+// The player's feet. Only this small box bumps into things, so the player's
+// head and body can overlap the roof of a house or the leaves of a tree.
+const PLAYER_FOOTPRINT = { width: 14, height: 6 };
+
+// What the game needs to know about each type of map object.
+//   footprint: the part that blocks walking, as a box on the ground.
+//              For upright things (houses, trees) that's just their base: the box sits
+//              on top of their x/y spot, so you can still walk behind them.
+//              For flat things it's centered on their x/y.
+//   flat:      true for things lying on the ground (water holes). They're always drawn
+//              underneath everything else, and their x/y is their center.
+const OBJECT_TYPES = {
+    house: { footprint: { width: 50, height: 14 } },
+    tree: { footprint: { width: 12, height: 8 } },   // just the trunk
+    pump: { footprint: { width: 30, height: 10 } },
+    'water-hole': { flat: true, footprint: { width: 104, height: 56 } }, // the water, not the sandy rim
+    'dirty-hole': { flat: true, footprint: { width: 104, height: 56 } }
+};
 
 const DRAIN_PER_SECOND = 1;        // how much village water is used up each second during the day (out of 100)
 const NIGHT_DRAIN_PER_SECOND = 0.5; // water still gets used at night, just less
@@ -251,7 +267,7 @@ function renderWorld(mapData) {
 
         // Things lower down the world (bigger y) are drawn in front of things higher up,
         // so the player can walk behind a tree. Flat things (water holes) stay underneath.
-        if (!FLAT_TYPES.includes(item.type)) {
+        if (!OBJECT_TYPES[item.type].flat) {
             el.style.zIndex = Math.round(item.y);
         }
 
@@ -463,20 +479,55 @@ function movePlayer() {
     const oldX = state.player.x;
     const oldY = state.player.y;
 
-    // Move, but keep the player inside the world
+    // Where the player wants to go (kept inside the world)
     const newSpot = keepInWorld({ x: state.player.x + dx, y: state.player.y + dy });
-    state.player.x = newSpot.x;
-    state.player.y = newSpot.y;
+
+    // Try the left/right step and the up/down step separately, and skip
+    // whichever one would walk into something solid. That way, walking
+    // diagonally into a wall slides along it instead of stopping dead.
+    if (!isBlocked(newSpot.x, state.player.y)) {
+        state.player.x = newSpot.x;
+    }
+    if (!isBlocked(state.player.x, newSpot.y)) {
+        state.player.y = newSpot.y;
+    }
 
     // Only count it as walking if the position changed
-    // (pushing against the edge of the map shouldn't play the walk animation)
+    // (pushing against a wall or the edge of the map shouldn't play the walk animation)
     state.player.moving = state.player.x !== oldX || state.player.y !== oldY;
+
+    // Walking to a tapped spot, but something is in the way? Give up, so the player
+    // doesn't walk on the spot forever. (Tap somewhere else to walk around it.)
+    if (state.player.target && !state.player.moving) {
+        state.player.target = null;
+    }
 
     // Face the way we're walking. Walking straight up or down keeps the old direction.
     if (dx < 0) state.player.facing = 'left';
     if (dx > 0) state.player.facing = 'right';
 
     renderPlayer();
+}
+
+// Would the player's feet bump into something solid if they stood at (x, y)?
+// Two boxes overlap when their centers are closer together than half their
+// widths added up (left/right) AND closer than half their heights added up (up/down).
+function isBlocked(x, y) {
+    // The middle of the player's feet box (it sits just above the spot where their feet touch the ground)
+    const feetY = y - PLAYER_FOOTPRINT.height / 2;
+
+    return villageMap.concat(state.wells).some((item) => {
+        const type = OBJECT_TYPES[item.type];
+        const footprint = type.footprint;
+
+        // The middle of the object's footprint box: on top of its ground spot,
+        // or right on it for flat things like water holes
+        const itemY = type.flat ? item.y : item.y - footprint.height / 2;
+
+        const overlapsLeftRight = Math.abs(x - item.x) < (footprint.width + PLAYER_FOOTPRINT.width) / 2;
+        const overlapsUpDown = Math.abs(feetY - itemY) < (footprint.height + PLAYER_FOOTPRINT.height) / 2;
+        return overlapsLeftRight && overlapsUpDown;
+    });
 }
 
 // Move a spot ({ x, y }) back inside the world if it's past an edge,
