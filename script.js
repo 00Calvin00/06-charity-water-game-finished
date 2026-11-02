@@ -13,9 +13,15 @@ const GAME_HEIGHT = 600; // must match #game height in styles.css
 const WORLD_WIDTH = 2400;  // must match #camera width in styles.css
 const WORLD_HEIGHT = 1800; // must match #camera height in styles.css
 
-// Where the player starts, and where they're sent back to at night.
-// Like every object's x/y, this is the spot where their feet touch the ground.
-const HOME_POSITION = { x: 1130, y: 965 };
+// Where the player starts, and where they're sent back to at night: the middle of the world.
+// The map generator builds the village around this spot (see map-generator.js).
+// Like every object's x/y, this is the spot where the player's feet touch the ground.
+const HOME_POSITION = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
+
+// Every game gets a new random map. To play the same map again (handy when fixing a bug),
+// add ?seed= and the map's number to the end of the page address, like index.html?seed=12345.
+// The number for each game is printed in the browser console.
+const SEED_FROM_URL = new URLSearchParams(window.location.search).get('seed');
 
 const TICK_MS = 30;        // the game loop runs every 30 milliseconds (about 33 times a second)
 const PLAYER_SPEED = 4;    // pixels the player moves each tick with the keyboard (slow-ish on purpose: walking is a chore!)
@@ -125,6 +131,9 @@ const CONFETTI_COLORS = ['#FFC907', '#003366', '#77A8BB', '#FED8C1', '#BF6C46', 
 // Build a brand-new copy of the starting game state.
 // It's a function so resetGame() can get a fresh copy every time someone plays again.
 function createStartingState() {
+    // The seed decides what the map looks like: the one from the address bar, or a random one
+    const seed = SEED_FROM_URL ? Number(SEED_FROM_URL) : Math.floor(Math.random() * 1000000);
+
     return {
         // What the game is doing right now:
         // 'start' (waiting for Start button), 'tutorial', 'playing', 'night', 'won' or 'lost'.
@@ -144,6 +153,13 @@ function createStartingState() {
         // moving is true while the player is walking (plays the walk animation).
         // facing is 'right' or 'left' (the way they last walked).
         player: { id: 'player', x: HOME_POSITION.x, y: HOME_POSITION.y, carrying: null, target: null, task: null, moving: false, facing: 'right' },
+
+        // The map: every house, tree and water hole, as a list of { type, x, y }.
+        // x and y are in pixels from the top-left corner of the whole world.
+        // Houses and trees: x/y is where they touch the ground (bottom-center).
+        // Water holes lie flat, so x/y is their center.
+        seed: seed,
+        map: generateMap(seed),
 
         // Wells and pumps built in the village. They're drawn on the map with the houses and trees.
         // Empty at the start; charity: water's pump is added when you win.
@@ -183,41 +199,6 @@ let tutorialStep = 0;
 // The Web Audio "sound system". Browsers only allow sound after the player clicks
 // something, so it's created when Start is clicked (see initAudio).
 let audioContext = null;
-
-// The village, in the middle screen of the world. x and y are in pixels,
-// measured from the top-left corner of the whole world.
-// Houses and trees: x/y is where they touch the ground (bottom-center).
-// Water holes lie flat, so x/y is their center.
-// (For now this is the old one-screen map moved to the middle. The map generator will replace it.)
-const villageMap = [
-    // Houses (left side)
-    { type: 'house', x: 1030, y: 735 },
-    { type: 'house', x: 970, y: 820 },
-    { type: 'house', x: 1095, y: 830 },
-    { type: 'house', x: 970, y: 925 },
-    { type: 'house', x: 1070, y: 925 },
-    { type: 'house', x: 1190, y: 915 },
-    { type: 'house', x: 1030, y: 1055 },
-
-    // Trees (right side)
-    { type: 'tree', x: 1250, y: 714 },
-    { type: 'tree', x: 1310, y: 749 },
-    { type: 'tree', x: 1390, y: 704 },
-    { type: 'tree', x: 1500, y: 729 },
-    { type: 'tree', x: 1280, y: 839 },
-    { type: 'tree', x: 1400, y: 834 },
-    { type: 'tree', x: 1470, y: 809 },
-    { type: 'tree', x: 1540, y: 854 },
-    { type: 'tree', x: 1520, y: 944 },
-    { type: 'tree', x: 1270, y: 994 },
-    { type: 'tree', x: 1350, y: 1044 },
-
-    // Water sources:
-    // the CLEAN water hole is far away to the bottom-right (a long walk)...
-    { type: 'water-hole', x: 1525, y: 1135 },
-    // ...and the DIRTY one is temptingly close to the village (the obstacle!)
-    { type: 'dirty-hole', x: 1230, y: 1070 }
-];
 
 // =====================================================
 // 3. DOM REFERENCES (elements we change from JavaScript)
@@ -325,7 +306,7 @@ function getDistance(a, b) {
 // Find the water source (clean or dirty) the player is standing next to.
 // Returns that map item, or undefined if they aren't near any water.
 function getNearbyWaterSource() {
-    return villageMap.find((item) =>
+    return state.map.find((item) =>
         (item.type === 'water-hole' || item.type === 'dirty-hole') &&
         getDistance(state.player, item) < INTERACT_DISTANCE
     );
@@ -334,7 +315,7 @@ function getNearbyWaterSource() {
 // Is the player close enough to ANY house to deliver water?
 // .some() returns true if at least one item in the array passes the test.
 function isNearVillage() {
-    return villageMap.some((item) => item.type === 'house' && getDistance(state.player, item) < INTERACT_DISTANCE);
+    return state.map.some((item) => item.type === 'house' && getDistance(state.player, item) < INTERACT_DISTANCE);
 }
 
 // Show a hint above the player's head when they can do something.
@@ -370,9 +351,11 @@ function updatePrompt() {
     // Place the prompt just above the player's head, but keep it inside the part of the
     // world the camera can see, so it doesn't get cut off near the edge of the screen.
     // (offsetWidth = the prompt's width in pixels; the prompt is centered, so use half of it.)
+    // When carrying water, the can is on the player's head, so go higher to stay above it.
     const halfWidth = promptEl.offsetWidth / 2;
+    const gapAboveHead = state.player.carrying ? 28 : 8;
     const left = clamp(state.player.x, camera.x + halfWidth + 8, camera.x + GAME_WIDTH - halfWidth - 8);
-    const top = Math.max(state.player.y - PLAYER_HEIGHT - 8, camera.y + promptEl.offsetHeight + 8);
+    const top = Math.max(state.player.y - PLAYER_HEIGHT - gapAboveHead, camera.y + promptEl.offsetHeight + 8);
     promptEl.style.left = `${left}px`;
     promptEl.style.top = `${top}px`;
 }
@@ -516,7 +499,7 @@ function isBlocked(x, y) {
     // The middle of the player's feet box (it sits just above the spot where their feet touch the ground)
     const feetY = y - PLAYER_FOOTPRINT.height / 2;
 
-    return villageMap.concat(state.wells).some((item) => {
+    return state.map.concat(state.wells).some((item) => {
         const type = OBJECT_TYPES[item.type];
         const footprint = type.footprint;
 
@@ -800,8 +783,13 @@ function winGame() {
 
     // Add the water pump to the village so the player can see it.
     // .concat() joins the two arrays so the pump is drawn along with the houses and trees.
-    state.wells.push({ type: 'pump', x: 920, y: 1023 });
-    renderWorld(villageMap.concat(state.wells));
+    // It goes in the village, in any free spot (findSpot is in map-generator.js).
+    // If the village is somehow too full, it goes right next to home instead.
+    const pumpSpot = findSpot(state.map.concat(state.wells), 'pump', () =>
+        spotAround(HOME_POSITION, randomBetween(0, FULL_CIRCLE), randomBetween(60, VILLAGE_RADIUS))
+    ) || { x: HOME_POSITION.x + 50, y: HOME_POSITION.y };
+    state.wells.push({ type: 'pump', x: pumpSpot.x, y: pumpSpot.y });
+    renderWorld(state.map.concat(state.wells));
     showMessage(`Help has arrived! ${BRAND_NAME} built a water pump for your village!`);
     playSound(SOUNDS.win);
     console.log('You win! charity: water built a pump.');
@@ -873,7 +861,8 @@ function resetGame() {
     clearHighlights();
 
     // Redraw everything (this also removes the pump if the last game was won)
-    renderWorld(villageMap.concat(state.wells));
+    renderWorld(state.map.concat(state.wells));
+    console.log(`New map, seed ${state.seed}. To play this map again, add ?seed=${state.seed} to the page address.`);
     renderPlayer();
     updateHUD();
     updatePrompt();
