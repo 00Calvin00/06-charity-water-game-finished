@@ -59,6 +59,14 @@ const DIRTY_WATER_PENALTY = 10;  // how much one bucket of DIRTY water takes awa
 const LITERS_PER_TRIP = 20;      // a jerry can holds about 20 liters
 const INTERACT_DISTANCE = 90;    // how close (in pixels) the player must be to use something
 const MESSAGE_TIME_MS = 3500;    // how long short messages stay on screen
+const TIP_MESSAGE_TIME_MS = 5000; // the villagers' morning tip stays a little longer
+
+// Clean water holes dry up and fill again. Each morning, this many of them have water.
+const WET_PONDS_PER_DAY = 2;
+
+// The 8 compass directions, going clockwise from north (up on the screen).
+// Each one is 45 degrees further around than the one before it.
+const COMPASS_DIRECTIONS = ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'];
 
 // Which direction each key moves the player.
 // Keys are lowercase so 'W' (caps lock) and 'w' both work.
@@ -102,8 +110,12 @@ const TUTORIAL_STEPS = [
         highlight: '#water-tracker'
     },
     {
-        text: 'The muddy water hole is close, but its water makes people sick. The clean water is farther away.',
-        highlight: '.water-hole, .dirty-hole'
+        text: 'The muddy water holes near the village make people sick. Clean water is a long walk away.',
+        highlight: '.dirty-hole'
+    },
+    {
+        text: 'Clean water holes dry up and fill again from day to day. Each morning, the villagers tell you where to find water, and the compass points the way.',
+        highlight: '#compass'
     },
     {
         text: IS_TOUCH_SCREEN
@@ -158,8 +170,12 @@ function createStartingState() {
         // x and y are in pixels from the top-left corner of the whole world.
         // Houses and trees: x/y is where they touch the ground (bottom-center).
         // Water holes lie flat, so x/y is their center.
+        // Clean water holes also get dry: true or false each morning (see changeWaterSources).
         seed: seed,
         map: generateMap(seed),
+
+        // The clean water hole the villagers told the player about this morning
+        tipPond: null,
 
         // Wells and pumps built in the village. They're drawn on the map with the houses and trees.
         // Empty at the start; charity: water's pump is added when you win.
@@ -228,6 +244,7 @@ const resetBtn = document.getElementById('reset-btn');
 const waterTrackerEl = document.getElementById('water-tracker');
 const waterBarEl = document.getElementById('water-bar');
 const waterPercentEl = document.getElementById('water-percent');
+const compassNeedleEl = document.getElementById('compass-needle');
 
 // =====================================================
 // 4. FUNCTIONS
@@ -243,6 +260,9 @@ function renderWorld(mapData) {
     mapData.forEach((item) => {
         const el = document.createElement('div');
         el.className = `sprite ${item.type}`;
+
+        // A dried-up water hole gets the "dried" class, which swaps its picture (see styles.css)
+        el.classList.toggle('dried', item.dry === true);
         el.style.left = `${item.x}px`;
         el.style.top = `${item.y}px`;
 
@@ -329,7 +349,9 @@ function updatePrompt() {
     let message = '';
     const source = getNearbyWaterSource();
 
-    if (source && !state.player.carrying) {
+    if (source && source.dry) {
+        message = 'This water hole has dried up';
+    } else if (source && !state.player.carrying) {
         const kind = source.type === 'dirty-hole' ? 'dirty' : 'clean';
         message = `${ACTION_HINT} to collect ${kind} water`;
     } else if (source && state.player.carrying) {
@@ -351,9 +373,9 @@ function updatePrompt() {
     // Place the prompt just above the player's head, but keep it inside the part of the
     // world the camera can see, so it doesn't get cut off near the edge of the screen.
     // (offsetWidth = the prompt's width in pixels; the prompt is centered, so use half of it.)
-    // When carrying water, the can is on the player's head, so go higher to stay above it.
+    // When carrying water, the can floats above the player's head, so go higher to stay above it.
     const halfWidth = promptEl.offsetWidth / 2;
-    const gapAboveHead = state.player.carrying ? 28 : 8;
+    const gapAboveHead = state.player.carrying ? 36 : 8;
     const left = clamp(state.player.x, camera.x + halfWidth + 8, camera.x + GAME_WIDTH - halfWidth - 8);
     const top = Math.max(state.player.y - PLAYER_HEIGHT - gapAboveHead, camera.y + promptEl.offsetHeight + 8);
     promptEl.style.left = `${left}px`;
@@ -364,7 +386,7 @@ function updatePrompt() {
 function handleInteract() {
     const source = getNearbyWaterSource();
 
-    if (source && !state.player.carrying) {
+    if (source && !source.dry && !state.player.carrying) {
         // Fill the bucket (you can only carry one at a time).
         // Remember which kind of water is in it.
         state.player.carrying = source.type === 'dirty-hole' ? 'dirty' : 'clean';
@@ -620,7 +642,7 @@ function finishTutorial() {
     clearHighlights();
     tutorialSeen = true; // don't show it again, even after Reset
     state.phase = 'playing';
-    showMessage('Now go get some water!', 2000);
+    showVillagerTip();
 }
 
 // Remove the pulsing tutorial outline from everything
@@ -743,6 +765,7 @@ function startNight() {
     renderPlayer();
 
     nightOverlayEl.classList.add('active');
+    compassNeedleEl.classList.add('hidden'); // today's tip is old news; a new one comes in the morning
     showMessage("Night has fallen. It's too dark to collect water, so you head home.");
     console.log(`Night ${state.day} begins.`);
 }
@@ -768,10 +791,69 @@ function startNewDay() {
     state.timeOfDay = 0;
     state.phase = 'playing';
 
+    // Overnight, some water holes dried up and others filled again
+    changeWaterSources();
+    renderWorld(state.map.concat(state.wells));
+
     nightOverlayEl.classList.remove('active');
-    hideMessage();
+    showVillagerTip(); // (this also replaces the night message)
     updateDayCounter();
     console.log(`Day ${state.day} begins.`);
+}
+
+// Each morning, only a few clean water holes have water; the rest are dried up.
+// Then the villagers pick one of the wet ones to tell the player about.
+function changeWaterSources() {
+    const cleanPonds = state.map.filter((item) => item.type === 'water-hole');
+
+    // Start with every clean water hole dried up...
+    cleanPonds.forEach((pond) => {
+        pond.dry = true;
+    });
+
+    // ...then pick random ones to fill, until enough have water.
+    // (random() comes from map-generator.js, so ?seed= also replays the same dry spells.)
+    // Math.min: never ask for more wet ones than there are water holes.
+    const wetPonds = [];
+    const wetCount = Math.min(WET_PONDS_PER_DAY, cleanPonds.length);
+    while (wetPonds.length < wetCount) {
+        const pond = cleanPonds[Math.floor(random() * cleanPonds.length)];
+        if (pond.dry) {
+            pond.dry = false;
+            wetPonds.push(pond);
+        }
+    }
+
+    // The villagers only know about one of them. The other one is for you to find!
+    state.tipPond = wetPonds[Math.floor(random() * wetPonds.length)];
+}
+
+// Which way is `to` from `from`? Returns one of the 8 compass directions,
+// like { name: 'northeast', degrees: 45 }. Up on the screen is north.
+function getCompassDirection(from, to) {
+    // Math.atan2 measures the angle of the line between the two spots.
+    // Giving it (across, up) measures it like a compass: 0 = north, 90 = east, 180 = south.
+    // (It works in radians, so * 180 / Math.PI turns that into degrees.)
+    const degrees = Math.atan2(to.x - from.x, from.y - to.y) * 180 / Math.PI;
+
+    // Round to the nearest of the 8 directions (they're 45 degrees apart).
+    // West comes out as -90 degrees, so + 8 and % 8 wrap negative numbers around to the right spot.
+    const index = (Math.round(degrees / 45) + 8) % 8;
+
+    return { name: COMPASS_DIRECTIONS[index], degrees: index * 45 };
+}
+
+// The villagers tell the player which way to find clean water today,
+// and the compass needle points that way (until nightfall).
+function showVillagerTip() {
+    if (!state.tipPond) return; // no clean water holes on this map at all
+
+    const direction = getCompassDirection(HOME_POSITION, state.tipPond);
+    showMessage(`Villagers say there's clean water to the ${direction.name}.`, TIP_MESSAGE_TIME_MS);
+
+    // The needle is drawn pointing north; rotating it turns it to face the right way
+    compassNeedleEl.style.transform = `rotate(${direction.degrees}deg)`;
+    compassNeedleEl.classList.remove('hidden');
 }
 
 // charity: water builds a water pump for the village. The player wins!
@@ -847,8 +929,9 @@ function resetGame() {
     clearTimeout(winTimeoutId);
     clearTimeout(messageTimeoutId);
 
-    // Fresh copy of all the starting values
+    // Fresh copy of all the starting values, with a brand-new map
     state = createStartingState();
+    changeWaterSources(); // decide which water holes have water on day 1
     releaseAllKeys();
 
     // Hide anything left over from the last game
@@ -859,6 +942,7 @@ function resetGame() {
     waterBarEl.classList.remove('hurt');
     document.querySelectorAll('.star, .confetti').forEach((el) => el.remove());
     clearHighlights();
+    compassNeedleEl.classList.add('hidden'); // until the villagers give their first tip
 
     // Redraw everything (this also removes the pump if the last game was won)
     renderWorld(state.map.concat(state.wells));
@@ -883,9 +967,10 @@ function startGame() {
     if (!tutorialSeen) {
         state.phase = 'tutorial';
         tutorialStep = 0;
-        showTutorialStep();
+        showTutorialStep(); // the villagers' tip comes after the tutorial (see finishTutorial)
     } else {
         state.phase = 'playing';
+        showVillagerTip();
     }
     console.log('Game started!');
 }

@@ -29,6 +29,7 @@
     --warning: var(--cw-clay);      /* low water, dirty water */
     --mud: #8a5a3c;                 /* a darker clay for the dirty water hole */
     --meter-track: var(--cw-gray);
+    --highlight: #e0282e;           /* red outline the tutorial uses to point things out */
 }
 
 /* ---------- Page ---------- */
@@ -186,6 +187,12 @@ h1 {
     background-image: url('img/sprites/pond-dirty.png');
 }
 
+/* A clean water hole that has dried up today (script.js adds the "dried" class) */
+.water-hole.dried {
+    height: 91px;
+    background-image: url('img/sprites/pond-dried.png');
+}
+
 /* The player is drawn from a SPRITE SHEET: one image with every frame side by side.
    img/sprites/player-sheet.png has 4 frames, each 21px wide and 40px tall:
      0px     -21px     -42px     -63px    <- background-position for each frame
@@ -228,10 +235,10 @@ h1 {
 /* The water can the player holds (positioned relative to the player) */
 #carry-icon {
     position: absolute;
-    /* Carried on top of the player's head (the player is 21 x 40).
+    /* Floats a little above the player's head (the player is 21 x 40).
        Negative top = above the player's box. */
     left: -4px;
-    top: -21px;
+    top: -29px;
     width: 30px; /* the image has empty space around the can, so it looks smaller than this */
     filter: drop-shadow(0 0 2px #000); /* outline so the yellow can shows up on the grass */
 }
@@ -242,7 +249,7 @@ h1 {
     content: '';
     position: absolute;
     left: 19px; /* next to the top of the can */
-    top: -20px;
+    top: -28px;
     width: 8px;
     height: 8px;
     background: var(--mud);
@@ -318,14 +325,14 @@ h1 {
 
 /* Tutorial: a pulsing yellow outline around the thing being explained */
 .highlight {
-    outline: 4px solid var(--cw-yellow);
+    outline: 4px solid var(--highlight);
     outline-offset: 6px;
     border-radius: 8px;
     animation: highlight-pulse 0.8s ease-in-out infinite alternate;
 }
 
 @keyframes highlight-pulse {
-    from { outline-color: var(--cw-yellow); }
+    from { outline-color: var(--highlight); }
     to   { outline-color: transparent; }
 }
 
@@ -375,11 +382,108 @@ h1 {
     background: var(--cw-yellow);
 }
 
-/* Water level (horizontal, bottom-left) */
-#water-tracker {
+/* Bottom-left corner: the compass stacked on top of the water level.
+   A flex column keeps them from overlapping, even when the text is boosted on phones. */
+#hud-bottom-left {
     position: absolute;
     left: 20px;
     bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* line them up on the left */
+    gap: 10px;
+}
+
+/* Compass (above the water level). Up is north. White on black. */
+#compass {
+    position: relative;
+    /* Grows a little with the text on small screens, so the letters still fit */
+    width: calc(52px + 16px * var(--text-boost, 1));
+    height: calc(52px + 16px * var(--text-boost, 1));
+    border-radius: 50%; /* a circle */
+    background: var(--cw-black);
+    border: 2px solid var(--cw-black);
+}
+
+/* A small dot in the middle, where the needle turns */
+#compass::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #fff;
+    transform: translate(-50%, -50%);
+}
+
+/* Tick marks. Each one covers the whole compass and draws a short line at its
+   top edge (::before), then the whole thing is turned to the right direction.
+   Turning around the middle of the compass puts each line on the rim. */
+.compass-tick {
+    position: absolute;
+    inset: 0;
+}
+
+.compass-tick::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 4px;
+    width: 2px;
+    height: 6px;
+    background: #fff;
+    transform: translateX(-50%);
+}
+
+.tick-ne { transform: rotate(45deg); }
+.tick-se { transform: rotate(135deg); }
+.tick-sw { transform: rotate(225deg); }
+.tick-nw { transform: rotate(315deg); }
+
+/* N, E, S and W around the edge */
+.compass-letter {
+    position: absolute;
+    font-weight: bold;
+    font-size: calc(10px * var(--text-boost, 1));
+    line-height: 1;
+    color: #fff;
+}
+
+.compass-n { top: 4px;    left: 50%; transform: translateX(-50%); }
+.compass-s { bottom: 4px; left: 50%; transform: translateX(-50%); }
+.compass-e { right: 5px;  top: 50%;  transform: translateY(-50%); }
+.compass-w { left: 5px;   top: 50%;  transform: translateY(-50%); }
+
+/* The needle covers the whole compass, so rotating it spins it around the middle.
+   It's drawn pointing north (up); script.js turns it with transform: rotate(). */
+#compass-needle {
+    position: absolute;
+    inset: 0;
+    transition: transform 0.6s; /* swing round to the new direction instead of jumping */
+}
+
+/* The pointer itself: a thin white triangle from the middle toward the edge.
+   clip-path cuts the box into a triangle by listing its 3 corners
+   (top middle, bottom right, bottom left). */
+#compass-needle::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 18%;
+    width: 12px;
+    height: 32%;
+    transform: translateX(-50%);
+    background: #fff;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+/* Water level (horizontal, bottom-left) */
+#water-tracker {
+    /* It sits under the compass in #hud-bottom-left.
+       relative = the celebration stars are positioned around it. */
+    position: relative;
 }
 
 #water-bar {

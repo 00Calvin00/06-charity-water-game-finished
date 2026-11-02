@@ -52,13 +52,32 @@
                 <span class="hud-icon">🌙</span>
             </div>
 
-            <!-- Village water level: the blue bar shrinks as water is used up -->
-            <div id="water-tracker">
-                <div id="water-bar">
-                    <div id="water-fill"></div>
+            <!-- Bottom-left corner: the compass, with the village water level under it -->
+            <div id="hud-bottom-left">
+
+                <!-- Compass: up is north. Each morning the needle turns to point
+                     where the villagers said there's clean water (script.js rotates it). -->
+                <div id="compass">
+                    <!-- Tick marks halfway between the letters (northeast, southeast...) -->
+                    <span class="compass-tick tick-ne"></span>
+                    <span class="compass-tick tick-se"></span>
+                    <span class="compass-tick tick-sw"></span>
+                    <span class="compass-tick tick-nw"></span>
+                    <span class="compass-letter compass-n">N</span>
+                    <span class="compass-letter compass-e">E</span>
+                    <span class="compass-letter compass-s">S</span>
+                    <span class="compass-letter compass-w">W</span>
+                    <div id="compass-needle" class="hidden"></div>
                 </div>
-                <!-- The score: script.js updates the number every tick -->
-                <span class="hud-label">Water Level: <span id="water-percent">60%</span></span>
+
+                <!-- Village water level: the blue bar shrinks as water is used up -->
+                <div id="water-tracker">
+                    <div id="water-bar">
+                        <div id="water-fill"></div>
+                    </div>
+                    <!-- The score: script.js updates the number every tick -->
+                    <span class="hud-label">Water Level: <span id="water-percent">60%</span></span>
+                </div>
             </div>
 
             <!-- How many days the village has survived -->
