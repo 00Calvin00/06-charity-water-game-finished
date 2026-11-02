@@ -202,6 +202,41 @@ h1 {
     background-image: url('img/sprites/pond-dried.png');
 }
 
+/* The row of drops above a clean water hole: one drop per bucket of water left.
+   script.js removes a drop each time a bucket is collected. */
+.pond-drops {
+    position: absolute;
+    left: 50%;
+    top: -8px; /* just above the water hole */
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+}
+
+.pond-drop {
+    width: 9px;
+    height: 9px;
+    background: #3d9be9; /* bright water blue */
+    border: 2px solid var(--cw-navy);
+    border-radius: 0 50% 50% 50%; /* rounded on 3 corners + turned = a drop shape */
+    transform: rotate(45deg);
+}
+
+/* Jerry cans of clean water left beside a house (script.js adds one per delivery
+   and removes them all at night) */
+.can-pile {
+    position: absolute;
+    left: 85%; /* the right-hand side of the house */
+    bottom: -2px;
+    display: flex;
+}
+
+.delivered-can {
+    width: 22px; /* the image has empty space around the can, so it looks smaller than this */
+    margin-left: -12px; /* tuck each can a little behind the one before it, like a pile */
+    filter: drop-shadow(0 0 1px #000);
+}
+
 /* The player is drawn from a SPRITE SHEET: one image with every frame side by side.
    img/sprites/player-sheet.png has 4 frames, each 21px wide and 40px tall:
      0px     -21px     -42px     -63px    <- background-position for each frame

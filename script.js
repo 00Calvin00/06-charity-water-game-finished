@@ -64,6 +64,10 @@ const TIP_MESSAGE_TIME_MS = 5000; // the villagers' morning tip stays a little l
 // Clean water holes dry up and fill again. Each morning, this many of them have water.
 const WET_PONDS_PER_DAY = 2;
 
+// How many buckets of water a clean water hole holds each morning.
+// Take them all and it's empty (dried up) until it refills on another day.
+const BUCKETS_PER_POND = 4;
+
 // The 8 compass directions, going clockwise from north (up on the screen).
 // Each one is 45 degrees further around than the one before it.
 const COMPASS_DIRECTIONS = ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'];
@@ -272,8 +276,56 @@ function renderWorld(mapData) {
             el.style.zIndex = Math.round(item.y);
         }
 
+        // A clean water hole with water in it shows one drop for each bucket it has left
+        // (takeBucketFrom removes them one at a time)
+        if (item.type === 'water-hole' && !item.dry) {
+            const dropsEl = document.createElement('div');
+            dropsEl.className = 'pond-drops';
+            for (let i = 0; i < item.bucketsLeft; i++) {
+                const drop = document.createElement('span');
+                drop.className = 'pond-drop';
+                dropsEl.appendChild(drop);
+            }
+            el.appendChild(dropsEl);
+        }
+
+        // Houses get an empty spot where delivered jerry cans will go (see addCanToHouse)
+        if (item.type === 'house') {
+            const pileEl = document.createElement('div');
+            pileEl.className = 'can-pile';
+            el.appendChild(pileEl);
+        }
+
+        // Remember which <div> draws this item, so we can change it later without redrawing everything
+        item.el = el;
+
         worldEl.appendChild(el);
     });
+}
+
+// Take one bucket of water out of a clean water hole, and remove one of its drops from the page.
+// When the last drop is gone, the water hole is empty: it dries up until it refills on another day.
+function takeBucketFrom(pond) {
+    pond.bucketsLeft -= 1;
+
+    // :last-child = the last drop in the row
+    pond.el.querySelector('.pond-drop:last-child').remove();
+
+    if (pond.bucketsLeft === 0) {
+        pond.dry = true;
+        pond.el.classList.add('dried'); // swap to the dried-up picture (see styles.css)
+        pond.el.querySelector('.pond-drops').remove(); // the empty row of drops isn't needed anymore
+    }
+}
+
+// Leave a full jerry can beside the house the water was delivered to.
+// The cans are removed again at night, once the village has used the water (see startNight).
+function addCanToHouse(house) {
+    const can = document.createElement('img');
+    can.className = 'delivered-can';
+    can.src = 'img/water-can-transparent.png';
+    can.alt = ''; // just decoration: the water bar already says how much water there is
+    house.el.querySelector('.can-pile').appendChild(can);
 }
 
 // Point the camera at the player, so they stay in the middle of the screen.
@@ -335,7 +387,13 @@ function getNearbyWaterSource() {
 // Is the player close enough to ANY house to deliver water?
 // .some() returns true if at least one item in the array passes the test.
 function isNearVillage() {
-    return state.map.some((item) => item.type === 'house' && getDistance(state.player, item) < INTERACT_DISTANCE);
+    return getNearbyHouse() !== undefined;
+}
+
+// Find a house the player is standing next to.
+// Returns that house, or undefined if they aren't near any.
+function getNearbyHouse() {
+    return state.map.find((item) => item.type === 'house' && getDistance(state.player, item) < INTERACT_DISTANCE);
 }
 
 // Show a hint above the player's head when they can do something.
@@ -390,12 +448,18 @@ function handleInteract() {
         // Fill the bucket (you can only carry one at a time).
         // Remember which kind of water is in it.
         state.player.carrying = source.type === 'dirty-hole' ? 'dirty' : 'clean';
+
+        // Clean water holes only hold a few buckets (muddy ones never run out)
+        if (source.type === 'water-hole') {
+            takeBucketFrom(source);
+        }
         console.log(`Collected ${state.player.carrying} water! Bring it back to the village.`);
     } else if (isNearVillage() && state.player.carrying === 'clean') {
         // Clean water: fill up the village. Math.min keeps water at 100 or less.
         state.water = Math.min(state.water + WATER_PER_TRIP, 100);
         state.litersDelivered += LITERS_PER_TRIP;
         state.player.carrying = null;
+        addCanToHouse(getNearbyHouse());
         showStars(waterTrackerEl);
         playSound(SOUNDS.clean);
         console.log(`Delivered clean water! Village water is now ${Math.round(state.water)}%.`);
@@ -764,6 +828,9 @@ function startNight() {
     state.player.carrying = null;
     renderPlayer();
 
+    // Overnight the village uses up the water it was given: take the delivered cans away
+    document.querySelectorAll('.delivered-can').forEach((can) => can.remove());
+
     nightOverlayEl.classList.add('active');
     compassNeedleEl.classList.add('hidden'); // today's tip is old news; a new one comes in the morning
     showMessage("Night has fallen. It's too dark to collect water, so you head home.");
@@ -820,6 +887,7 @@ function changeWaterSources() {
         const pond = cleanPonds[Math.floor(random() * cleanPonds.length)];
         if (pond.dry) {
             pond.dry = false;
+            pond.bucketsLeft = BUCKETS_PER_POND;
             wetPonds.push(pond);
         }
     }
