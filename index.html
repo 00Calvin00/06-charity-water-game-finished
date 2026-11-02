@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Go Get The Water!</title>
+    <!-- Montserrat: a free font that looks like charity: water's brand font (Proxima Nova).
+         It's only used on computers that don't have Proxima Nova or Avenir (see body in styles.css). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -17,15 +22,21 @@
          "not-started" makes the world gray and faded until Start is clicked (see styles.css). -->
     <main id="game" class="not-started">
 
-        <!-- The world: houses, trees and the water hole get added here by script.js -->
-        <div id="world"></div>
+        <!-- The camera holds the whole world, which is much bigger than the game box.
+             script.js slides it around so the part around the player shows through the box. -->
+        <div id="camera">
 
-        <!-- The player character. The water can only shows while carrying water. -->
-        <div id="player" class="sprite">🧍<img id="carry-icon" class="hidden" src="img/water-can-transparent.png" alt="Carrying water"></div>
+            <!-- The world: houses, trees and water holes get added here by script.js -->
+            <div id="world"></div>
 
-        <!-- Hint that appears above the player (e.g. "Press ENTER to collect water").
-             It's a button so it can also be clicked or tapped. -->
-        <button id="prompt" class="hidden"></button>
+            <!-- The player character, drawn from a sprite sheet (see #player in styles.css).
+                 The water can only shows while carrying water. -->
+            <div id="player" class="sprite"><img id="carry-icon" class="hidden" src="img/water-can-transparent.png" alt="Carrying water"></div>
+
+            <!-- Hint that appears above the player (e.g. "Press ENTER to collect water").
+                 It's a button so it can also be clicked or tapped. -->
+            <button id="prompt" class="hidden"></button>
+        </div>
 
         <!-- Dark blue layer that fades in at night (HUD stays bright on top of it) -->
         <div id="night-overlay"></div>
@@ -46,13 +57,32 @@
                 <span class="hud-icon">🌙</span>
             </div>
 
-            <!-- Village water level: the blue bar shrinks as water is used up -->
-            <div id="water-tracker">
-                <div id="water-bar">
-                    <div id="water-fill"></div>
+            <!-- Bottom-left corner: the compass, with the village water level under it -->
+            <div id="hud-bottom-left">
+
+                <!-- Compass: up is north. Each morning the needle turns to point
+                     where the villagers said there's clean water (script.js rotates it). -->
+                <div id="compass">
+                    <!-- Tick marks halfway between the letters (northeast, southeast...) -->
+                    <span class="compass-tick tick-ne"></span>
+                    <span class="compass-tick tick-se"></span>
+                    <span class="compass-tick tick-sw"></span>
+                    <span class="compass-tick tick-nw"></span>
+                    <span class="compass-letter compass-n">N</span>
+                    <span class="compass-letter compass-e">E</span>
+                    <span class="compass-letter compass-s">S</span>
+                    <span class="compass-letter compass-w">W</span>
+                    <div id="compass-needle" class="hidden"></div>
                 </div>
-                <!-- The score: script.js updates the number every tick -->
-                <span class="hud-label">Water Level: <span id="water-percent">60%</span></span>
+
+                <!-- Village water level: the blue bar shrinks as water is used up -->
+                <div id="water-tracker">
+                    <div id="water-bar">
+                        <div id="water-fill"></div>
+                    </div>
+                    <!-- The score: script.js updates the number every tick -->
+                    <span class="hud-label">Water Level: <span id="water-percent">60%</span></span>
+                </div>
             </div>
 
             <!-- How many days the village has survived -->
@@ -62,12 +92,20 @@
         <!-- Start screen: showing when the page loads, hidden when Start is clicked -->
         <div id="start-screen" class="overlay">
             <h2>Go Get The Water!</h2>
-            <p>Your village needs water to survive. Walk to the water hole, fill your bucket and bring it home before the water runs out.</p>
+            <p>Your village needs water to survive. Find clean water, fill your jerry can and bring it home before the water runs out.</p>
             <p class="controls-help">
                 Move: arrow keys, WASD, or tap/click where you want to walk.<br>
                 Collect &amp; deliver: ENTER, or tap/click the hint above your head.
             </p>
-            <button id="start-btn">Start</button>
+
+            <!-- One button per difficulty. data-difficulty matches a name in DIFFICULTIES (script.js).
+                 If you change the number of days there, change it here too. -->
+            <p class="difficulty-label">Choose a difficulty:</p>
+            <div class="difficulty-buttons">
+                <button class="difficulty-btn" data-difficulty="easy">Easy<span class="difficulty-detail">Survive 3 days</span></button>
+                <button class="difficulty-btn" data-difficulty="normal">Normal<span class="difficulty-detail">Survive 4 days</span></button>
+                <button class="difficulty-btn" data-difficulty="hard">Hard<span class="difficulty-detail">Survive 5 days</span></button>
+            </div>
         </div>
 
         <!-- Lose screen: hidden until the water runs out.
@@ -83,6 +121,7 @@
             </p>
             <a class="learn-more" href="https://www.charitywater.org" target="_blank" rel="noopener">Learn how you can help</a>
             <button id="try-again-btn">Try Again</button>
+            <button class="change-difficulty-btn">Change Difficulty</button>
         </div>
 
         <!-- Win screen: hidden until charity: water builds the pump -->
@@ -93,9 +132,12 @@
                 <img src="img/cw_logo_horizontal.png" alt="charity: water">
             </div>
             <p id="win-message"></p>
-            <p class="fact">In Africa alone, women spend 40 billion hours a year walking for water.</p>
+            <!-- Source: UNICEF press release, August 2016 ("Collecting water is often a colossal
+                 waste of time for women and girls") -->
+            <p class="fact">Every day, women and girls around the world spend 200 million hours collecting water.</p>
             <a class="learn-more" href="https://www.charitywater.org" target="_blank" rel="noopener">Learn more about charity:&nbsp;water</a>
             <button id="play-again-btn">Play Again</button>
+            <button class="change-difficulty-btn">Change Difficulty</button>
         </div>
     </main>
     </div>
@@ -103,8 +145,26 @@
     <!-- Controls under the game box (outside #game so they never cover the map) -->
     <div id="controls-bar">
         <button id="reset-btn">Reset</button>
+        <!-- Turns the background music on and off (script.js changes the text) -->
+        <button id="music-btn">Music: On</button>
     </div>
 
+    <!-- Footer: links to charity: water. They open in a new tab, so the game keeps its place. -->
+    <footer id="site-footer">
+        <p>For millions of people, this walk is real. charity:&nbsp;water brings clean water to communities that need it.</p>
+        <nav class="footer-links">
+            <a href="https://www.charitywater.org" target="_blank" rel="noopener">Learn about charity:&nbsp;water</a>
+            <a href="https://www.charitywater.org/donate" target="_blank" rel="noopener">Donate</a>
+        </nav>
+        <p class="music-credit">Music by AlkaKrab (YouTube)</p>
+    </footer>
+
+    <!-- Background music: a short piece that loops (repeats) for as long as it plays.
+         script.js starts it when a game starts and fades it out when the game ends. -->
+    <audio id="music" src="audio/music-loop.m4a" loop preload="auto"></audio>
+
+    <!-- map-generator.js first: script.js uses it to build a new map for every game -->
+    <script src="map-generator.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

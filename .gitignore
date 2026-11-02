@@ -1,0 +1,6 @@
+# Python environment for the art tools (see tools/README.md)
+.venv/
+__pycache__/
+
+# macOS
+.DS_Store

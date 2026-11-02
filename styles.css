@@ -29,6 +29,7 @@
     --warning: var(--cw-clay);      /* low water, dirty water */
     --mud: #8a5a3c;                 /* a darker clay for the dirty water hole */
     --meter-track: var(--cw-gray);
+    --highlight: #e0282e;           /* red outline the tutorial uses to point things out */
 }
 
 /* ---------- Page ---------- */
@@ -36,13 +37,22 @@ body {
     margin: 0;
     min-height: 100vh;
     background: var(--page-bg);
-    font-family: Arial, Helvetica, sans-serif;
+    /* charity: water's brand font is Proxima Nova; their brand guide says to use Avenir
+       when it isn't available. The browser uses the first font in this list that it has:
+       Proxima Nova (if installed), then Avenir (on Macs, iPhones and iPads), then
+       Montserrat (loaded in index.html, a free look-alike for everyone else). */
+    font-family: 'Proxima Nova', 'Avenir Next', Avenir, Montserrat, Arial, sans-serif;
     color: var(--cw-yellow);
 
     /* Center the title and game box on the page */
     display: flex;
     flex-direction: column;
     align-items: center;
+}
+
+/* Buttons don't use the page's font unless we tell them to */
+button {
+    font-family: inherit;
 }
 
 h1 {
@@ -71,13 +81,7 @@ h1 {
     position: relative;
     width: 800px;
     height: 600px;
-    /* Dry ground: peach, with a few soft clay-colored patches for texture.
-       Each radial-gradient is one patch that fades out to transparent. */
-    background-color: var(--ground);
-    background-image:
-        radial-gradient(ellipse at 75% 80%, rgba(191, 108, 70, 0.18), transparent 45%),
-        radial-gradient(ellipse at 15% 25%, rgba(191, 108, 70, 0.12), transparent 40%),
-        radial-gradient(ellipse at 60% 25%, rgba(191, 108, 70, 0.10), transparent 35%);
+    background-color: var(--ground); /* the sand itself is on #camera, so it scrolls with the world */
     border-radius: 8px;
     overflow: hidden; /* hide anything that goes outside the box */
 
@@ -89,9 +93,30 @@ h1 {
     touch-action: manipulation;
 }
 
+/* The whole world, much bigger than the 800 x 600 game box.
+   The game box only shows the part of it the camera is looking at:
+   script.js slides the camera with transform: translate(), and #game's
+   overflow: hidden hides everything outside the box. */
+#camera {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 2400px;  /* must match WORLD_WIDTH in script.js */
+    height: 1800px; /* must match WORLD_HEIGHT in script.js */
+
+    /* The ground: one small square of speckled sand, repeated over the whole world.
+       (The file is 384px, twice this size, so it stays sharp on high-resolution screens.) */
+    background: url('img/sprites/ground.png') 0 0 / 192px 192px repeat;
+
+    /* Everything in the world gets a z-index from its y position (up to 1800).
+       z-index: 0 here keeps all of that INSIDE the camera layer, so none of it
+       can end up on top of the night overlay, HUD or messages. */
+    z-index: 0;
+}
+
 #world {
     position: absolute;
-    inset: 0; /* fill the whole game box */
+    inset: 0; /* fill the whole camera */
 }
 
 /* ---------- Intro: gray and faded until Start is clicked ---------- */
@@ -115,64 +140,150 @@ h1 {
 /* ---------- Sprites (houses, trees, player) ---------- */
 .sprite {
     position: absolute;
-    font-size: 44px;
-    line-height: 1;
 
-    /* Move the sprite up and left by half its size,
-       so its left/top values point to its CENTER instead of its corner.
-       This makes distance math easier later. */
-    transform: translate(-50%, -50%);
+    /* Every map object is a picture from img/sprites/.
+       contain = fit the whole image inside the box without stretching it.
+       Each type below only needs its own size and image file. */
+    background-position: center;
+    background-size: contain;
+    background-repeat: no-repeat;
+
+    /* Every object's x and y is the spot where it touches the GROUND
+       (the player's feet, the bottom of a tree trunk).
+       So move the sprite left by half its width and up by its whole height:
+       that puts its bottom-center on the x/y spot instead of its top-left corner. */
+    transform: translate(-50%, -100%);
     user-select: none;
 }
 
+/* The image files are twice these sizes so they look sharp on high-resolution screens */
 .house {
-    font-size: 52px;
+    width: 60px;
+    height: 51px;
+    background-image: url('img/sprites/house.png');
 }
 
 .tree {
-    font-size: 48px;
+    width: 47px;
+    height: 48px;
+    background-image: url('img/sprites/tree.png');
 }
 
-/* The water pump is drawn with an image (transparent background) */
+/* The water pump charity: water builds when you win */
 .pump {
-    width: 56px;
-    height: 67px;
-    /* contain = fit the whole image inside without stretching it */
-    background: url('img/water-pump.png') center / contain no-repeat;
+    width: 29px;
+    height: 34px;
+    background-image: url('img/sprites/pump.png');
 }
 
-/* Water holes are drawn with CSS instead of an emoji.
-   Both kinds share the same blob shape... */
+/* Water holes: clean and blue, or muddy and dirty.
+   They lie FLAT on the ground, so their x/y is their center
+   (and script.js always draws them underneath everything else). */
 .water-hole,
 .dirty-hole {
-    width: 130px;
-    height: 85px;
-    /* Uneven corner values make a "blob" shape instead of a perfect oval */
-    border-radius: 55% 45% 60% 40% / 50% 60% 40% 50%;
+    transform: translate(-50%, -50%);
 }
 
-/* ...but have different colors */
 .water-hole {
-    background: var(--clean-water);
-    border: 4px solid var(--cw-navy);
+    width: 138px;
+    height: 87px;
+    background-image: url('img/sprites/pond-clean.png');
 }
 
 .dirty-hole {
-    background: var(--mud);
-    border: 4px solid var(--cw-clay);
+    width: 138px;
+    height: 91px;
+    background-image: url('img/sprites/pond-dirty.png');
 }
 
+/* A clean water hole that has dried up today (script.js adds the "dried" class) */
+.water-hole.dried {
+    height: 91px;
+    background-image: url('img/sprites/pond-dried.png');
+}
+
+/* The row of drops above a clean water hole: one drop per bucket of water left.
+   script.js removes a drop each time a bucket is collected. */
+.pond-drops {
+    position: absolute;
+    left: 50%;
+    top: -8px; /* just above the water hole */
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+}
+
+.pond-drop {
+    width: 9px;
+    height: 9px;
+    background: #3d9be9; /* bright water blue */
+    border: 2px solid var(--cw-navy);
+    border-radius: 0 50% 50% 50%; /* rounded on 3 corners + turned = a drop shape */
+    transform: rotate(45deg);
+}
+
+/* Jerry cans of clean water left beside a house (script.js adds one per delivery
+   and removes them all at night) */
+.can-pile {
+    position: absolute;
+    left: 85%; /* the right-hand side of the house */
+    bottom: -2px;
+    display: flex;
+}
+
+.delivered-can {
+    width: 22px; /* the image has empty space around the can, so it looks smaller than this */
+    margin-left: -12px; /* tuck each can a little behind the one before it, like a pile */
+    filter: drop-shadow(0 0 1px #000);
+}
+
+/* The player is drawn from a SPRITE SHEET: one image with every frame side by side.
+   img/sprites/player-sheet.png has 4 frames, each 21px wide and 40px tall:
+     0px     -21px     -42px     -63px    <- background-position for each frame
+   [ idle ] [ walk 1 ] [ walk 2 ] [ walk 3 ]
+   The box only shows one frame at a time. Changing background-position
+   slides the sheet left so a different frame shows through the box.
+   (The image file is twice this size so it looks sharp on high-resolution screens.
+   background-size shrinks it to fit.) */
 #player {
-    font-size: 40px;
-    z-index: 5; /* keep the player drawn on top of houses and trees */
+    width: 21px;
+    height: 40px;
+    background: url('img/sprites/player-sheet.png') 0 0 / 84px 40px no-repeat; /* 84px = 4 frames x 21px */
+    /* script.js sets the player's z-index from their y, like every other object,
+       so they walk in front of or behind trees and houses */
+}
+
+/* script.js adds .walking while the player is moving */
+#player.walking {
+    /* step-end jumps straight from frame to frame instead of sliding between them */
+    animation: player-walk 0.5s step-end infinite;
+}
+
+/* The walk cycle: walk 1, walk 2, walk 1, walk 3, then repeat.
+   Walk 1 is the "feet together" pose, so it goes between the two strides. */
+@keyframes player-walk {
+    0%   { background-position: -21px 0; } /* walk 1 */
+    25%  { background-position: -42px 0; } /* walk 2 */
+    50%  { background-position: -21px 0; } /* walk 1 */
+    75%  { background-position: -63px 0; } /* walk 3 */
+    100% { background-position: -21px 0; }
+}
+
+/* The art faces right. To face left, flip the player like a mirror.
+   We have to repeat translate(-50%, -100%) from .sprite, or this would replace it.
+   The water can is inside #player, so it flips over to the other hand too. */
+#player.facing-left {
+    transform: translate(-50%, -100%) scaleX(-1);
 }
 
 /* The water can the player holds (positioned relative to the player) */
 #carry-icon {
     position: absolute;
-    left: 22px;
-    top: 4px;
-    width: 46px; /* the image has empty space around the can, so it looks smaller than this */
+    /* Floats a little above the player's head (the player is 21 x 40).
+       Negative top = above the player's box. */
+    left: -4px;
+    top: -29px;
+    width: 30px; /* the image has empty space around the can, so it looks smaller than this */
     filter: drop-shadow(0 0 2px #000); /* outline so the yellow can shows up on the grass */
 }
 
@@ -181,10 +292,10 @@ h1 {
 #player.carrying-dirty::after {
     content: '';
     position: absolute;
-    left: 56px;
-    top: 0;
-    width: 12px;
-    height: 12px;
+    left: 19px; /* next to the top of the can */
+    top: -28px;
+    width: 8px;
+    height: 8px;
     background: var(--mud);
     border: 2px solid #000;
     border-radius: 0 50% 50% 50%; /* rounded on 3 corners = a drop shape */
@@ -194,7 +305,7 @@ h1 {
 /* Hint above the player's head. It's a <button> so it can be clicked/tapped. */
 #prompt {
     position: absolute;
-    z-index: 6;
+    z-index: 10000; /* above every world object (their z-index is their y, at most 1800) */
     transform: translate(-50%, -100%); /* center it above the point we give it */
     white-space: nowrap;
     padding: 4px 10px;
@@ -258,14 +369,14 @@ h1 {
 
 /* Tutorial: a pulsing yellow outline around the thing being explained */
 .highlight {
-    outline: 4px solid var(--cw-yellow);
+    outline: 4px solid var(--highlight);
     outline-offset: 6px;
     border-radius: 8px;
     animation: highlight-pulse 0.8s ease-in-out infinite alternate;
 }
 
 @keyframes highlight-pulse {
-    from { outline-color: var(--cw-yellow); }
+    from { outline-color: var(--highlight); }
     to   { outline-color: transparent; }
 }
 
@@ -315,11 +426,108 @@ h1 {
     background: var(--cw-yellow);
 }
 
-/* Water level (horizontal, bottom-left) */
-#water-tracker {
+/* Bottom-left corner: the compass stacked on top of the water level.
+   A flex column keeps them from overlapping, even when the text is boosted on phones. */
+#hud-bottom-left {
     position: absolute;
     left: 20px;
     bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* line them up on the left */
+    gap: 10px;
+}
+
+/* Compass (above the water level). Up is north. White on black. */
+#compass {
+    position: relative;
+    /* Grows a little with the text on small screens, so the letters still fit */
+    width: calc(52px + 16px * var(--text-boost, 1));
+    height: calc(52px + 16px * var(--text-boost, 1));
+    border-radius: 50%; /* a circle */
+    background: var(--cw-black);
+    border: 2px solid var(--cw-black);
+}
+
+/* A small dot in the middle, where the needle turns */
+#compass::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #fff;
+    transform: translate(-50%, -50%);
+}
+
+/* Tick marks. Each one covers the whole compass and draws a short line at its
+   top edge (::before), then the whole thing is turned to the right direction.
+   Turning around the middle of the compass puts each line on the rim. */
+.compass-tick {
+    position: absolute;
+    inset: 0;
+}
+
+.compass-tick::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 4px;
+    width: 2px;
+    height: 6px;
+    background: #fff;
+    transform: translateX(-50%);
+}
+
+.tick-ne { transform: rotate(45deg); }
+.tick-se { transform: rotate(135deg); }
+.tick-sw { transform: rotate(225deg); }
+.tick-nw { transform: rotate(315deg); }
+
+/* N, E, S and W around the edge */
+.compass-letter {
+    position: absolute;
+    font-weight: bold;
+    font-size: calc(10px * var(--text-boost, 1));
+    line-height: 1;
+    color: #fff;
+}
+
+.compass-n { top: 4px;    left: 50%; transform: translateX(-50%); }
+.compass-s { bottom: 4px; left: 50%; transform: translateX(-50%); }
+.compass-e { right: 5px;  top: 50%;  transform: translateY(-50%); }
+.compass-w { left: 5px;   top: 50%;  transform: translateY(-50%); }
+
+/* The needle covers the whole compass, so rotating it spins it around the middle.
+   It's drawn pointing north (up); script.js turns it with transform: rotate(). */
+#compass-needle {
+    position: absolute;
+    inset: 0;
+    transition: transform 0.6s; /* swing round to the new direction instead of jumping */
+}
+
+/* The pointer itself: a thin white triangle from the middle toward the edge.
+   clip-path cuts the box into a triangle by listing its 3 corners
+   (top middle, bottom right, bottom left). */
+#compass-needle::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 18%;
+    width: 12px;
+    height: 32%;
+    transform: translateX(-50%);
+    background: #fff;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+/* Water level (horizontal, bottom-left) */
+#water-tracker {
+    /* It sits under the compass in #hud-bottom-left.
+       relative = the celebration stars are positioned around it. */
+    position: relative;
 }
 
 #water-bar {
@@ -363,6 +571,12 @@ h1 {
     pointer-events: none;
     opacity: 0; /* invisible until its animation starts */
     animation: twinkle 0.9s ease-out forwards;
+}
+
+/* The pump is much smaller than the water bar, so its stars are smaller too
+   (otherwise they'd cover the pump). Same twinkle, just a smaller size. */
+.pump .star {
+    font-size: 12px;
 }
 
 /* Pop in, spin a little, and fade away */
@@ -484,6 +698,46 @@ h1 {
     background: #ffd84a;
 }
 
+/* ---------- Difficulty buttons (start screen) ---------- */
+.difficulty-label {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.difficulty-buttons {
+    display: flex;
+    flex-wrap: wrap; /* on narrow screens the buttons go onto more lines instead of squishing */
+    justify-content: center;
+    gap: 14px;
+}
+
+/* Each button shows the difficulty's name, with a smaller line of detail under it */
+.difficulty-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 130px;
+}
+
+.difficulty-detail {
+    font-size: 0.65em; /* em = compared to the button's own text size */
+    font-weight: normal;
+    margin-top: 4px;
+}
+
+/* "Change Difficulty" on the win and lose screens: an outline button, so the main
+   button (Try Again / Play Again) still stands out as the one to press */
+.overlay .change-difficulty-btn {
+    margin-top: 12px;
+    background: transparent;
+    color: var(--cw-yellow);
+    border: 2px solid var(--cw-yellow);
+}
+
+.overlay .change-difficulty-btn:hover {
+    background: rgba(255, 201, 7, 0.15);
+}
+
 /* Hides any element. script.js adds or removes this class to show/hide things. */
 .hidden {
     display: none;
@@ -492,9 +746,44 @@ h1 {
 /* ---------- Controls under the game box ---------- */
 #controls-bar {
     margin: 16px 0 24px;
+    display: flex; /* the Reset and Music buttons side by side */
+    gap: 12px;
 }
 
-#reset-btn {
+/* ---------- Footer (charity: water links, under the game) ---------- */
+#site-footer {
+    max-width: 640px;
+    margin: 0 16px 32px;
+    text-align: center;
+    color: var(--cw-cream);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.footer-links {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap; /* on narrow screens the links go onto two lines instead of squishing */
+    gap: 12px 28px;
+    margin-top: 8px;
+}
+
+.footer-links a {
+    color: var(--cw-yellow);
+    font-weight: bold;
+    text-underline-offset: 3px;
+}
+
+/* Credit for the background music */
+.music-credit {
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--cw-gray);
+}
+
+/* The Reset and Music buttons under the game look the same */
+#reset-btn,
+#music-btn {
     font-size: 16px;
     font-weight: bold;
     padding: 8px 24px;
@@ -505,7 +794,8 @@ h1 {
     cursor: pointer;
 }
 
-#reset-btn:hover {
+#reset-btn:hover,
+#music-btn:hover {
     background: var(--cw-yellow);
     color: #000;
 }
