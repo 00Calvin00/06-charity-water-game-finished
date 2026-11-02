@@ -3,7 +3,17 @@
 // =====================================================
 const DAY_LENGTH = 20;      // how long daytime lasts, in seconds
 const NIGHT_LENGTH = 2.5;  // how long night lasts, in seconds
-const DAYS_TO_WIN = 4;  // survive this many days and charity: water builds a pump
+
+// Difficulty modes. The player picks one on the start screen. Each one changes:
+//   the goal:  daysToWin      - survive this many days and charity: water builds a pump
+//   the pace:  drainPerSecond - how much village water is used up each second during the day (out of 100)
+//   the rules: wetPondsPerDay - how many clean water holes have water each morning
+//              bucketsPerPond - how many buckets each of those holds before it runs dry
+const DIFFICULTIES = {
+    easy:   { name: 'Easy',   daysToWin: 3, drainPerSecond: 1,    wetPondsPerDay: 3, bucketsPerPond: 5 },
+    normal: { name: 'Normal', daysToWin: 4, drainPerSecond: 1.25, wetPondsPerDay: 2, bucketsPerPond: 4 },
+    hard:   { name: 'Hard',   daysToWin: 5, drainPerSecond: 1.5,  wetPondsPerDay: 2, bucketsPerPond: 2 }
+};
 
 // The game box: the part of the world you can see at once
 const GAME_WIDTH = 800;  // must match #game width in styles.css
@@ -50,8 +60,7 @@ const OBJECT_TYPES = {
     'dirty-hole': { flat: true, footprint: { width: 104, height: 56 } }
 };
 
-const DRAIN_PER_SECOND = 1.25;     // how much village water is used up each second during the day (out of 100)
-const NIGHT_DRAIN_PER_SECOND = 0.5; // water still gets used at night, just less
+const NIGHT_DRAIN_PER_SECOND = 0.5; // water still gets used at night, just less (the daytime rate is in DIFFICULTIES)
 const LOW_WATER_LEVEL = 25;  // below this, the water bar turns red as a warning
 
 const WATER_PER_TRIP = 15;       // how much one bucket of CLEAN water adds to the village water (out of 100)
@@ -60,13 +69,6 @@ const LITERS_PER_TRIP = 20;      // a jerry can holds about 20 liters
 const INTERACT_DISTANCE = 90;    // how close (in pixels) the player must be to use something
 const MESSAGE_TIME_MS = 3500;    // how long short messages stay on screen
 const TIP_MESSAGE_TIME_MS = 5000; // the villagers' morning tip stays a little longer
-
-// Clean water holes dry up and fill again. Each morning, this many of them have water.
-const WET_PONDS_PER_DAY = 2;
-
-// How many buckets of water a clean water hole holds each morning.
-// Take them all and it's empty (dried up) until it refills on another day.
-const BUCKETS_PER_POND = 4;
 
 // The 8 compass directions, going clockwise from north (up on the screen).
 // Each one is 45 degrees further around than the one before it.
@@ -213,6 +215,10 @@ const camera = { x: 0, y: 0 };
 // resetGame() replaces the state, but we want the tutorial to stay skipped on replays.
 let tutorialSeen = false;
 
+// The difficulty being played: one of the rows in DIFFICULTIES.
+// Also outside the state, so Reset and Try Again keep the same difficulty.
+let settings = DIFFICULTIES.normal;
+
 // Which tutorial message is showing (an index into TUTORIAL_STEPS)
 let tutorialStep = 0;
 
@@ -243,7 +249,8 @@ const messageBoxEl = document.getElementById('message-box');
 const winScreenEl = document.getElementById('win-screen');
 const playAgainBtn = document.getElementById('play-again-btn');
 const startScreenEl = document.getElementById('start-screen');
-const startBtn = document.getElementById('start-btn');
+const difficultyButtons = document.querySelectorAll('.difficulty-btn');
+const changeDifficultyButtons = document.querySelectorAll('.change-difficulty-btn');
 const resetBtn = document.getElementById('reset-btn');
 const waterTrackerEl = document.getElementById('water-tracker');
 const waterBarEl = document.getElementById('water-bar');
@@ -497,7 +504,7 @@ function updateHUD() {
 
 // Show the new day number and make it "pop" (grow, then shrink back).
 function updateDayCounter() {
-    dayCounterEl.textContent = `Day ${state.day}`;
+    dayCounterEl.textContent = `Day ${state.day} of ${settings.daysToWin}`;
 
     // Adding the 'pop' class starts the CSS animation.
     // It's removed again when the animation ends (see the 'animationend' listener).
@@ -649,7 +656,7 @@ function fitGameToScreen() {
 }
 
 // Use up a little of the village's water. Called once per tick.
-// ratePerSecond is DRAIN_PER_SECOND in the day, NIGHT_DRAIN_PER_SECOND at night.
+// ratePerSecond is the difficulty's drainPerSecond in the day, NIGHT_DRAIN_PER_SECOND at night.
 function drainWater(ratePerSecond) {
     // The rate is per second, but a tick is only TICK_MS long,
     // so only drain that fraction of a second's worth.
@@ -849,7 +856,7 @@ function advanceNight() {
 // Morning: either charity: water arrives (win) or a new day begins.
 function startNewDay() {
     // Made it through the last night? Help has arrived!
-    if (state.day >= DAYS_TO_WIN) {
+    if (state.day >= settings.daysToWin) {
         winGame();
         return;
     }
@@ -882,12 +889,12 @@ function changeWaterSources() {
     // (random() comes from map-generator.js, so ?seed= also replays the same dry spells.)
     // Math.min: never ask for more wet ones than there are water holes.
     const wetPonds = [];
-    const wetCount = Math.min(WET_PONDS_PER_DAY, cleanPonds.length);
+    const wetCount = Math.min(settings.wetPondsPerDay, cleanPonds.length);
     while (wetPonds.length < wetCount) {
         const pond = cleanPonds[Math.floor(random() * cleanPonds.length)];
         if (pond.dry) {
             pond.dry = false;
-            pond.bucketsLeft = BUCKETS_PER_POND;
+            pond.bucketsLeft = settings.bucketsPerPond;
             wetPonds.push(pond);
         }
     }
@@ -1018,7 +1025,14 @@ function resetGame() {
     renderPlayer();
     updateHUD();
     updatePrompt();
-    dayCounterEl.textContent = `Day ${state.day}`;
+    dayCounterEl.textContent = `Day ${state.day} of ${settings.daysToWin}`;
+}
+
+// Go back to the start screen (to pick a difficulty), with the world gray and faded behind it.
+function showStartScreen() {
+    resetGame(); // stops the game loop and hides the win/lose screens
+    startScreenEl.classList.remove('hidden');
+    gameEl.classList.add('not-started');
 }
 
 // Start playing: hide the start screen, bring the world to life and start the game loop.
@@ -1048,7 +1062,7 @@ function gameLoop() {
     if (state.phase === 'playing') {
         // Daytime: the player can move, and water drains at the normal rate
         movePlayer();
-        drainWater(DRAIN_PER_SECOND);
+        drainWater(settings.drainPerSecond);
         advanceDay();
     } else if (state.phase === 'night') {
         // Night: no moving, water drains more slowly
@@ -1113,10 +1127,23 @@ window.addEventListener('blur', releaseAllKeys);
 // A clicked button stays "focused", and pressing ENTER on a focused button clicks it again.
 // Since ENTER is also our collect/deliver key, that would restart the game by accident!
 
-// Start button (only on the very first game)
-startBtn.addEventListener('click', (event) => {
-    event.currentTarget.blur();
-    startGame();
+// Difficulty buttons (start screen): play at that difficulty.
+// button.dataset.difficulty reads the button's data-difficulty="..." from index.html.
+difficultyButtons.forEach((button) => {
+    button.addEventListener('click', (event) => {
+        event.currentTarget.blur();
+        settings = DIFFICULTIES[button.dataset.difficulty];
+        resetGame(); // a fresh map and water holes set up for this difficulty
+        startGame();
+    });
+});
+
+// Change Difficulty buttons (win and lose screens): go back to the start screen to pick again
+changeDifficultyButtons.forEach((button) => {
+    button.addEventListener('click', (event) => {
+        event.currentTarget.blur();
+        showStartScreen();
+    });
 });
 
 // Reset button (always visible under the game): restart whenever the player wants
@@ -1196,4 +1223,4 @@ playAgainBtn.addEventListener('click', (event) => {
 // so the game waits until the Start button is clicked.
 fitGameToScreen(); // size the game for this screen
 resetGame();
-console.log(`Milestone 9: Click Start, survive ${DAYS_TO_WIN} days for charity: water to arrive.`);
+console.log('Pick a difficulty to start. Survive the days and charity: water will arrive.');

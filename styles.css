@@ -692,6 +692,46 @@ h1 {
     background: #ffd84a;
 }
 
+/* ---------- Difficulty buttons (start screen) ---------- */
+.difficulty-label {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.difficulty-buttons {
+    display: flex;
+    flex-wrap: wrap; /* on narrow screens the buttons go onto more lines instead of squishing */
+    justify-content: center;
+    gap: 14px;
+}
+
+/* Each button shows the difficulty's name, with a smaller line of detail under it */
+.difficulty-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 130px;
+}
+
+.difficulty-detail {
+    font-size: 0.65em; /* em = compared to the button's own text size */
+    font-weight: normal;
+    margin-top: 4px;
+}
+
+/* "Change Difficulty" on the win and lose screens: an outline button, so the main
+   button (Try Again / Play Again) still stands out as the one to press */
+.overlay .change-difficulty-btn {
+    margin-top: 12px;
+    background: transparent;
+    color: var(--cw-yellow);
+    border: 2px solid var(--cw-yellow);
+}
+
+.overlay .change-difficulty-btn:hover {
+    background: rgba(255, 201, 7, 0.15);
+}
+
 /* Hides any element. script.js adds or removes this class to show/hide things. */
 .hidden {
     display: none;

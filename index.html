@@ -92,12 +92,20 @@
         <!-- Start screen: showing when the page loads, hidden when Start is clicked -->
         <div id="start-screen" class="overlay">
             <h2>Go Get The Water!</h2>
-            <p>Your village needs water to survive. Walk to the water hole, fill your bucket and bring it home before the water runs out.</p>
+            <p>Your village needs water to survive. Find clean water, fill your jerry can and bring it home before the water runs out.</p>
             <p class="controls-help">
                 Move: arrow keys, WASD, or tap/click where you want to walk.<br>
                 Collect &amp; deliver: ENTER, or tap/click the hint above your head.
             </p>
-            <button id="start-btn">Start</button>
+
+            <!-- One button per difficulty. data-difficulty matches a name in DIFFICULTIES (script.js).
+                 If you change the number of days there, change it here too. -->
+            <p class="difficulty-label">Choose a difficulty:</p>
+            <div class="difficulty-buttons">
+                <button class="difficulty-btn" data-difficulty="easy">Easy<span class="difficulty-detail">Survive 3 days</span></button>
+                <button class="difficulty-btn" data-difficulty="normal">Normal<span class="difficulty-detail">Survive 4 days</span></button>
+                <button class="difficulty-btn" data-difficulty="hard">Hard<span class="difficulty-detail">Survive 5 days</span></button>
+            </div>
         </div>
 
         <!-- Lose screen: hidden until the water runs out.
@@ -113,6 +121,7 @@
             </p>
             <a class="learn-more" href="https://www.charitywater.org" target="_blank" rel="noopener">Learn how you can help</a>
             <button id="try-again-btn">Try Again</button>
+            <button class="change-difficulty-btn">Change Difficulty</button>
         </div>
 
         <!-- Win screen: hidden until charity: water builds the pump -->
@@ -126,6 +135,7 @@
             <p class="fact">In Africa alone, women spend 40 billion hours a year walking for water.</p>
             <a class="learn-more" href="https://www.charitywater.org" target="_blank" rel="noopener">Learn more about charity:&nbsp;water</a>
             <button id="play-again-btn">Play Again</button>
+            <button class="change-difficulty-btn">Change Difficulty</button>
         </div>
     </main>
     </div>
