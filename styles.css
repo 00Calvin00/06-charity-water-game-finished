@@ -71,13 +71,7 @@ h1 {
     position: relative;
     width: 800px;
     height: 600px;
-    /* Dry ground: peach, with a few soft clay-colored patches for texture.
-       Each radial-gradient is one patch that fades out to transparent. */
-    background-color: var(--ground);
-    background-image:
-        radial-gradient(ellipse at 75% 80%, rgba(191, 108, 70, 0.18), transparent 45%),
-        radial-gradient(ellipse at 15% 25%, rgba(191, 108, 70, 0.12), transparent 40%),
-        radial-gradient(ellipse at 60% 25%, rgba(191, 108, 70, 0.10), transparent 35%);
+    background-color: var(--ground); /* the sand itself is on #camera, so it scrolls with the world */
     border-radius: 8px;
     overflow: hidden; /* hide anything that goes outside the box */
 
@@ -89,9 +83,30 @@ h1 {
     touch-action: manipulation;
 }
 
+/* The whole world, much bigger than the 800 x 600 game box.
+   The game box only shows the part of it the camera is looking at:
+   script.js slides the camera with transform: translate(), and #game's
+   overflow: hidden hides everything outside the box. */
+#camera {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 2400px;  /* must match WORLD_WIDTH in script.js */
+    height: 1800px; /* must match WORLD_HEIGHT in script.js */
+
+    /* The ground: one small square of speckled sand, repeated over the whole world.
+       (The file is 384px, twice this size, so it stays sharp on high-resolution screens.) */
+    background: url('img/sprites/ground.png') 0 0 / 192px 192px repeat;
+
+    /* Everything in the world gets a z-index from its y position (up to 1800).
+       z-index: 0 here keeps all of that INSIDE the camera layer, so none of it
+       can end up on top of the night overlay, HUD or messages. */
+    z-index: 0;
+}
+
 #world {
     position: absolute;
-    inset: 0; /* fill the whole game box */
+    inset: 0; /* fill the whole camera */
 }
 
 /* ---------- Intro: gray and faded until Start is clicked ---------- */
@@ -123,17 +138,18 @@ h1 {
     background-size: contain;
     background-repeat: no-repeat;
 
-    /* Move the sprite up and left by half its size,
-       so its left/top values point to its CENTER instead of its corner.
-       This makes distance math easier later. */
-    transform: translate(-50%, -50%);
+    /* Every object's x and y is the spot where it touches the GROUND
+       (the player's feet, the bottom of a tree trunk).
+       So move the sprite left by half its width and up by its whole height:
+       that puts its bottom-center on the x/y spot instead of its top-left corner. */
+    transform: translate(-50%, -100%);
     user-select: none;
 }
 
 /* The image files are twice these sizes so they look sharp on high-resolution screens */
 .house {
-    width: 52px;
-    height: 44px;
+    width: 60px;
+    height: 51px;
     background-image: url('img/sprites/house.png');
 }
 
@@ -150,7 +166,14 @@ h1 {
     background-image: url('img/sprites/pump.png');
 }
 
-/* Water holes: clean and blue, or muddy and dirty */
+/* Water holes: clean and blue, or muddy and dirty.
+   They lie FLAT on the ground, so their x/y is their center
+   (and script.js always draws them underneath everything else). */
+.water-hole,
+.dirty-hole {
+    transform: translate(-50%, -50%);
+}
+
 .water-hole {
     width: 138px;
     height: 87px;
@@ -175,7 +198,8 @@ h1 {
     width: 21px;
     height: 40px;
     background: url('img/sprites/player-sheet.png') 0 0 / 84px 40px no-repeat; /* 84px = 4 frames x 21px */
-    z-index: 5; /* keep the player drawn on top of houses and trees */
+    /* script.js sets the player's z-index from their y, like every other object,
+       so they walk in front of or behind trees and houses */
 }
 
 /* script.js adds .walking while the player is moving */
@@ -195,10 +219,10 @@ h1 {
 }
 
 /* The art faces right. To face left, flip the player like a mirror.
-   We have to repeat translate(-50%, -50%) from .sprite, or this would replace it.
+   We have to repeat translate(-50%, -100%) from .sprite, or this would replace it.
    The water can is inside #player, so it flips over to the other hand too. */
 #player.facing-left {
-    transform: translate(-50%, -50%) scaleX(-1);
+    transform: translate(-50%, -100%) scaleX(-1);
 }
 
 /* The water can the player holds (positioned relative to the player) */
@@ -229,7 +253,7 @@ h1 {
 /* Hint above the player's head. It's a <button> so it can be clicked/tapped. */
 #prompt {
     position: absolute;
-    z-index: 6;
+    z-index: 10000; /* above every world object (their z-index is their y, at most 1800) */
     transform: translate(-50%, -100%); /* center it above the point we give it */
     white-space: nowrap;
     padding: 4px 10px;

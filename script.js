@@ -5,18 +5,28 @@ const DAY_LENGTH = 20;      // how long daytime lasts, in seconds
 const NIGHT_LENGTH = 2.5;  // how long night lasts, in seconds
 const DAYS_TO_WIN = 4;  // survive this many days and charity: water builds a pump
 
-// Where the player starts, and where they're sent back to at night
-const HOME_POSITION = { x: 330, y: 345 };
-
+// The game box: the part of the world you can see at once
 const GAME_WIDTH = 800;  // must match #game width in styles.css
 const GAME_HEIGHT = 600; // must match #game height in styles.css
+
+// The whole world is 3 x 3 game boxes. The camera shows one box-sized piece at a time.
+const WORLD_WIDTH = 2400;  // must match #camera width in styles.css
+const WORLD_HEIGHT = 1800; // must match #camera height in styles.css
+
+// Where the player starts, and where they're sent back to at night.
+// Like every object's x/y, this is the spot where their feet touch the ground.
+const HOME_POSITION = { x: 1130, y: 965 };
 
 const TICK_MS = 30;        // the game loop runs every 30 milliseconds (about 33 times a second)
 const PLAYER_SPEED = 4;    // pixels the player moves each tick with the keyboard (slow-ish on purpose: walking is a chore!)
 const CLICK_WALK_SPEED = 3; // pixels per tick when walking to a tapped/clicked spot.
                             // Slower than the keyboard because tapping walks in a perfectly straight
                             // line, which gets you there sooner than steering with the arrow keys.
-const PLAYER_HALF_SIZE = 20; // half the player's size, so they can't walk halfway out of the box
+const PLAYER_WIDTH = 21;  // must match #player in styles.css
+const PLAYER_HEIGHT = 40; // (used to keep the player inside the world and center the camera on them)
+
+// Water holes lie flat on the ground, so they're always drawn underneath everything else
+const FLAT_TYPES = ['water-hole', 'dirty-hole'];
 
 const DRAIN_PER_SECOND = 1;        // how much village water is used up each second during the day (out of 100)
 const NIGHT_DRAIN_PER_SECOND = 0.5; // water still gets used at night, just less
@@ -144,6 +154,9 @@ let messageTimeoutId = null;
 // The hint currently showing above the player (so we only rebuild it when it changes)
 let currentPromptMessage = '';
 
+// The camera's top-left corner, in world pixels (see updateCamera)
+const camera = { x: 0, y: 0 };
+
 // Has the player finished the tutorial? This lives OUTSIDE the state object on purpose:
 // resetGame() replaces the state, but we want the tutorial to stay skipped on replays.
 let tutorialSeen = false;
@@ -155,41 +168,45 @@ let tutorialStep = 0;
 // something, so it's created when Start is clicked (see initAudio).
 let audioContext = null;
 
-// The village screen. x and y are the CENTER of each object, in pixels,
-// measured from the top-left corner of the 800 x 600 game box.
+// The village, in the middle screen of the world. x and y are in pixels,
+// measured from the top-left corner of the whole world.
+// Houses and trees: x/y is where they touch the ground (bottom-center).
+// Water holes lie flat, so x/y is their center.
+// (For now this is the old one-screen map moved to the middle. The map generator will replace it.)
 const villageMap = [
     // Houses (left side)
-    { type: 'house', x: 230, y: 110 },
-    { type: 'house', x: 170, y: 195 },
-    { type: 'house', x: 295, y: 205 },
-    { type: 'house', x: 170, y: 300 },
-    { type: 'house', x: 270, y: 300 },
-    { type: 'house', x: 390, y: 290 },
-    { type: 'house', x: 230, y: 430 },
+    { type: 'house', x: 1030, y: 735 },
+    { type: 'house', x: 970, y: 820 },
+    { type: 'house', x: 1095, y: 830 },
+    { type: 'house', x: 970, y: 925 },
+    { type: 'house', x: 1070, y: 925 },
+    { type: 'house', x: 1190, y: 915 },
+    { type: 'house', x: 1030, y: 1055 },
 
     // Trees (right side)
-    { type: 'tree', x: 450, y: 90 },
-    { type: 'tree', x: 510, y: 125 },
-    { type: 'tree', x: 590, y: 80 },
-    { type: 'tree', x: 700, y: 105 },
-    { type: 'tree', x: 480, y: 215 },
-    { type: 'tree', x: 600, y: 210 },
-    { type: 'tree', x: 670, y: 185 },
-    { type: 'tree', x: 740, y: 230 },
-    { type: 'tree', x: 720, y: 320 },
-    { type: 'tree', x: 470, y: 370 },
-    { type: 'tree', x: 550, y: 420 },
+    { type: 'tree', x: 1250, y: 714 },
+    { type: 'tree', x: 1310, y: 749 },
+    { type: 'tree', x: 1390, y: 704 },
+    { type: 'tree', x: 1500, y: 729 },
+    { type: 'tree', x: 1280, y: 839 },
+    { type: 'tree', x: 1400, y: 834 },
+    { type: 'tree', x: 1470, y: 809 },
+    { type: 'tree', x: 1540, y: 854 },
+    { type: 'tree', x: 1520, y: 944 },
+    { type: 'tree', x: 1270, y: 994 },
+    { type: 'tree', x: 1350, y: 1044 },
 
     // Water sources:
-    // the CLEAN water hole is far away in the bottom-right corner (a long walk)...
-    { type: 'water-hole', x: 725, y: 535 },
+    // the CLEAN water hole is far away to the bottom-right (a long walk)...
+    { type: 'water-hole', x: 1525, y: 1135 },
     // ...and the DIRTY one is temptingly close to the village (the obstacle!)
-    { type: 'dirty-hole', x: 430, y: 470 }
+    { type: 'dirty-hole', x: 1230, y: 1070 }
 ];
 
 // =====================================================
 // 3. DOM REFERENCES (elements we change from JavaScript)
 // =====================================================
+const cameraEl = document.getElementById('camera');
 const worldEl = document.getElementById('world');
 const playerEl = document.getElementById('player');
 const gameEl = document.getElementById('game');
@@ -231,8 +248,31 @@ function renderWorld(mapData) {
         el.className = `sprite ${item.type}`;
         el.style.left = `${item.x}px`;
         el.style.top = `${item.y}px`;
+
+        // Things lower down the world (bigger y) are drawn in front of things higher up,
+        // so the player can walk behind a tree. Flat things (water holes) stay underneath.
+        if (!FLAT_TYPES.includes(item.type)) {
+            el.style.zIndex = Math.round(item.y);
+        }
+
         worldEl.appendChild(el);
     });
+}
+
+// Point the camera at the player, so they stay in the middle of the screen.
+function updateCamera() {
+    // Center on the middle of the player's body (their y is their feet)
+    const centerX = state.player.x - GAME_WIDTH / 2;
+    const centerY = state.player.y - PLAYER_HEIGHT / 2 - GAME_HEIGHT / 2;
+
+    // ...but stop at the edges of the world, so we never see past them.
+    // Math.round keeps the pixel art sharp (half-pixel positions look blurry).
+    camera.x = Math.round(clamp(centerX, 0, WORLD_WIDTH - GAME_WIDTH));
+    camera.y = Math.round(clamp(centerY, 0, WORLD_HEIGHT - GAME_HEIGHT));
+
+    // Slide the whole world the OPPOSITE way: when the camera moves right,
+    // everything you see moves left.
+    cameraEl.style.transform = `translate(${-camera.x}px, ${-camera.y}px)`;
 }
 
 // Move the player's <div> to match the player's x and y in the state.
@@ -251,6 +291,12 @@ function renderPlayer() {
     // (the animation and the flip are both done in styles.css)
     playerEl.classList.toggle('walking', state.player.moving);
     playerEl.classList.toggle('facing-left', state.player.facing === 'left');
+
+    // Draw the player in front of or behind things, the same way as the map (see renderWorld)
+    playerEl.style.zIndex = Math.round(state.player.y);
+
+    // The camera follows the player
+    updateCamera();
 }
 
 // Distance in pixels between two things that have x and y (like the player and a house).
@@ -305,12 +351,14 @@ function updatePrompt() {
     }
     promptEl.classList.toggle('hidden', message === '');
 
-    // Place the prompt just above the player, but keep it inside the game box
-    // so it doesn't get cut off when the player is near the left or right edge.
+    // Place the prompt just above the player's head, but keep it inside the part of the
+    // world the camera can see, so it doesn't get cut off near the edge of the screen.
     // (offsetWidth = the prompt's width in pixels; the prompt is centered, so use half of it.)
     const halfWidth = promptEl.offsetWidth / 2;
-    promptEl.style.left = `${clamp(state.player.x, halfWidth + 8, GAME_WIDTH - halfWidth - 8)}px`;
-    promptEl.style.top = `${state.player.y - 45}px`;
+    const left = clamp(state.player.x, camera.x + halfWidth + 8, camera.x + GAME_WIDTH - halfWidth - 8);
+    const top = Math.max(state.player.y - PLAYER_HEIGHT - 8, camera.y + promptEl.offsetHeight + 8);
+    promptEl.style.left = `${left}px`;
+    promptEl.style.top = `${top}px`;
 }
 
 // What happens when the player presses ENTER.
@@ -415,9 +463,10 @@ function movePlayer() {
     const oldX = state.player.x;
     const oldY = state.player.y;
 
-    // Move, but keep the player inside the game box
-    state.player.x = clamp(state.player.x + dx, PLAYER_HALF_SIZE, GAME_WIDTH - PLAYER_HALF_SIZE);
-    state.player.y = clamp(state.player.y + dy, PLAYER_HALF_SIZE, GAME_HEIGHT - PLAYER_HALF_SIZE);
+    // Move, but keep the player inside the world
+    const newSpot = keepInWorld({ x: state.player.x + dx, y: state.player.y + dy });
+    state.player.x = newSpot.x;
+    state.player.y = newSpot.y;
 
     // Only count it as walking if the position changed
     // (pushing against the edge of the map shouldn't play the walk animation)
@@ -428,6 +477,16 @@ function movePlayer() {
     if (dx > 0) state.player.facing = 'right';
 
     renderPlayer();
+}
+
+// Move a spot ({ x, y }) back inside the world if it's past an edge,
+// so the player can't walk (or be sent) off the map.
+// x is the middle of the player and y is their feet, so the limits are different on each side.
+function keepInWorld(spot) {
+    return {
+        x: clamp(spot.x, PLAYER_WIDTH / 2, WORLD_WIDTH - PLAYER_WIDTH / 2),
+        y: clamp(spot.y, PLAYER_HEIGHT, WORLD_HEIGHT)
+    };
 }
 
 // Keep a number between a smallest and largest value.
@@ -690,7 +749,7 @@ function winGame() {
 
     // Add the water pump to the village so the player can see it.
     // .concat() joins the two arrays so the pump is drawn along with the houses and trees.
-    state.wells.push({ type: 'pump', x: 120, y: 390 });
+    state.wells.push({ type: 'pump', x: 920, y: 1023 });
     renderWorld(villageMap.concat(state.wells));
     showMessage(`Help has arrived! ${BRAND_NAME} built a water pump for your village!`);
     playSound(SOUNDS.win);
@@ -897,17 +956,15 @@ gameEl.addEventListener('pointerdown', (event) => {
     if (event.target.closest('button')) return;
 
     // The game might be drawn smaller than 800 x 600 (see fitGameToScreen),
-    // so convert the tap from screen pixels to game pixels.
+    // so convert the tap from screen pixels to game box pixels...
     const rect = gameEl.getBoundingClientRect();
     const scale = rect.width / GAME_WIDTH;
-    const x = (event.clientX - rect.left) / scale;
-    const y = (event.clientY - rect.top) / scale;
+    const boxX = (event.clientX - rect.left) / scale;
+    const boxY = (event.clientY - rect.top) / scale;
 
-    // Keep the target inside the area the player can actually reach
-    state.player.target = {
-        x: clamp(x, PLAYER_HALF_SIZE, GAME_WIDTH - PLAYER_HALF_SIZE),
-        y: clamp(y, PLAYER_HALF_SIZE, GAME_HEIGHT - PLAYER_HALF_SIZE)
-    };
+    // ...then to world pixels: add where the camera is looking.
+    // The player walks until their feet reach the tapped spot.
+    state.player.target = keepInWorld({ x: boxX + camera.x, y: boxY + camera.y });
 });
 
 // Clicking/tapping the hint above the player does the same thing as pressing ENTER

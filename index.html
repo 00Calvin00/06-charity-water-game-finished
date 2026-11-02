@@ -17,16 +17,21 @@
          "not-started" makes the world gray and faded until Start is clicked (see styles.css). -->
     <main id="game" class="not-started">
 
-        <!-- The world: houses, trees and the water hole get added here by script.js -->
-        <div id="world"></div>
+        <!-- The camera holds the whole world, which is much bigger than the game box.
+             script.js slides it around so the part around the player shows through the box. -->
+        <div id="camera">
 
-        <!-- The player character, drawn from a sprite sheet (see #player in styles.css).
-             The water can only shows while carrying water. -->
-        <div id="player" class="sprite"><img id="carry-icon" class="hidden" src="img/water-can-transparent.png" alt="Carrying water"></div>
+            <!-- The world: houses, trees and water holes get added here by script.js -->
+            <div id="world"></div>
 
-        <!-- Hint that appears above the player (e.g. "Press ENTER to collect water").
-             It's a button so it can also be clicked or tapped. -->
-        <button id="prompt" class="hidden"></button>
+            <!-- The player character, drawn from a sprite sheet (see #player in styles.css).
+                 The water can only shows while carrying water. -->
+            <div id="player" class="sprite"><img id="carry-icon" class="hidden" src="img/water-can-transparent.png" alt="Carrying water"></div>
+
+            <!-- Hint that appears above the player (e.g. "Press ENTER to collect water").
+                 It's a button so it can also be clicked or tapped. -->
+            <button id="prompt" class="hidden"></button>
+        </div>
 
         <!-- Dark blue layer that fades in at night (HUD stays bright on top of it) -->
         <div id="night-overlay"></div>
