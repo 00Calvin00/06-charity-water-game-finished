@@ -171,8 +171,8 @@ h1 {
 
 /* The water pump charity: water builds when you win */
 .pump {
-    width: 58px;
-    height: 67px;
+    width: 29px;
+    height: 34px;
     background-image: url('img/sprites/pump.png');
 }
 
@@ -740,6 +740,8 @@ h1 {
 /* ---------- Controls under the game box ---------- */
 #controls-bar {
     margin: 16px 0 24px;
+    display: flex; /* the Reset and Music buttons side by side */
+    gap: 12px;
 }
 
 /* ---------- Footer (charity: water links, under the game) ---------- */
@@ -766,7 +768,16 @@ h1 {
     text-underline-offset: 3px;
 }
 
-#reset-btn {
+/* Credit for the background music */
+.music-credit {
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--cw-gray);
+}
+
+/* The Reset and Music buttons under the game look the same */
+#reset-btn,
+#music-btn {
     font-size: 16px;
     font-weight: bold;
     padding: 8px 24px;
@@ -777,7 +788,8 @@ h1 {
     cursor: pointer;
 }
 
-#reset-btn:hover {
+#reset-btn:hover,
+#music-btn:hover {
     background: var(--cw-yellow);
     color: #000;
 }

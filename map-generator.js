@@ -36,7 +36,7 @@ const MAX_TRIES = 200;  // how many random spots to try before giving up on an o
 const ROOM = {
     house: 38,
     tree: 26,
-    pump: 30,
+    pump: 20,
     'water-hole': 95,
     'dirty-hole': 95
 };

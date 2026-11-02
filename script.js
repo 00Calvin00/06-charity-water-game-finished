@@ -55,7 +55,7 @@ const PLAYER_FOOTPRINT = { width: 14, height: 6 };
 const OBJECT_TYPES = {
     house: { footprint: { width: 50, height: 14 } },
     tree: { footprint: { width: 12, height: 8 } },   // just the trunk
-    pump: { footprint: { width: 30, height: 10 } },
+    pump: { footprint: { width: 15, height: 6 } },
     'water-hole': { flat: true, footprint: { width: 104, height: 56 } }, // the water, not the sandy rim
     'dirty-hole': { flat: true, footprint: { width: 104, height: 56 } }
 };
@@ -139,6 +139,10 @@ const SOUNDS = {
     dirty: [[220, 0, 0.25], [175, 0.15, 0.35]],                        // low "bonk-bonk"
     win: [[523, 0, 0.2], [659, 0.15, 0.2], [784, 0.3, 0.2], [1047, 0.45, 0.6]] // rising fanfare
 };
+
+// Background music volume, from 0 (silent) to 1 (full).
+// Quieter than the sound effects, so the delivery "ding" still stands out.
+const MUSIC_VOLUME = 0.35;
 
 // Brand colors for the confetti
 const CONFETTI_COLORS = ['#FFC907', '#003366', '#77A8BB', '#FED8C1', '#BF6C46', '#FFF7E1'];
@@ -226,6 +230,13 @@ let tutorialStep = 0;
 // something, so it's created when Start is clicked (see initAudio).
 let audioContext = null;
 
+// Is the background music switched on? (The Music button under the game changes this.)
+// Outside the state, so a new game doesn't switch it back on.
+let musicOn = true;
+
+// The ID of the timer that fades the music out (see fadeOutMusic)
+let musicFadeId = null;
+
 // =====================================================
 // 3. DOM REFERENCES (elements we change from JavaScript)
 // =====================================================
@@ -248,6 +259,8 @@ const nightOverlayEl = document.getElementById('night-overlay');
 const messageBoxEl = document.getElementById('message-box');
 const winScreenEl = document.getElementById('win-screen');
 const playAgainBtn = document.getElementById('play-again-btn');
+const musicEl = document.getElementById('music');
+const musicBtn = document.getElementById('music-btn');
 const startScreenEl = document.getElementById('start-screen');
 const difficultyButtons = document.querySelectorAll('.difficulty-btn');
 const changeDifficultyButtons = document.querySelectorAll('.change-difficulty-btn');
@@ -759,6 +772,41 @@ function playSound(notes) {
     });
 }
 
+// ---------- Music ----------
+
+// Start the background music from the beginning.
+// The <audio> tag has "loop", so it repeats by itself until it's stopped.
+function startMusic() {
+    clearInterval(musicFadeId); // cancel a fade-out that's still going
+    musicEl.currentTime = 0;    // back to the start of the track
+    musicEl.volume = MUSIC_VOLUME;
+    musicEl.muted = !musicOn;
+
+    // play() fails if the browser blocks sound (it only allows sound after a click).
+    // .catch() quietly ignores that, so the game still works without music.
+    musicEl.play().catch(() => {});
+}
+
+// Turn the music down a little at a time until it's silent, then stop it.
+function fadeOutMusic() {
+    clearInterval(musicFadeId);
+    musicFadeId = setInterval(() => {
+        // Math.max stops the volume going below 0 (a negative volume is an error)
+        musicEl.volume = Math.max(musicEl.volume - MUSIC_VOLUME / 30, 0);
+
+        if (musicEl.volume === 0) {
+            musicEl.pause();
+            clearInterval(musicFadeId);
+        }
+    }, 50); // 30 small steps, 50 milliseconds apart = a 1.5 second fade
+}
+
+// Stop the music right away
+function stopMusic() {
+    clearInterval(musicFadeId);
+    musicEl.pause();
+}
+
 // ---------- Confetti ----------
 
 // Rain brand-colored confetti over the game (when the player wins).
@@ -935,6 +983,7 @@ function showVillagerTip() {
 function winGame() {
     state.phase = 'won';
     clearInterval(loopId); // stop the game loop
+    fadeOutMusic(); // so the win fanfare can be heard
 
     nightOverlayEl.classList.remove('active');
 
@@ -972,6 +1021,7 @@ function checkWinLose() {
 function loseGame() {
     state.phase = 'lost';
     clearInterval(loopId); // stop the game loop
+    fadeOutMusic();
 
     // The loop has stopped, so stop the walk animation too
     state.player.moving = false;
@@ -1003,6 +1053,7 @@ function resetGame() {
     // cancel the timer so the win screen doesn't pop up over the new game
     clearTimeout(winTimeoutId);
     clearTimeout(messageTimeoutId);
+    stopMusic(); // startGame() starts it again from the beginning
 
     // Fresh copy of all the starting values, with a brand-new map
     state = createStartingState();
@@ -1040,6 +1091,7 @@ function startGame() {
     startScreenEl.classList.add('hidden');
     gameEl.classList.remove('not-started'); // the world fades from gray into full color
     initAudio(); // Start was a click, so the browser now allows sound
+    startMusic();
 
     clearInterval(loopId); // just in case a loop is already running
     loopId = setInterval(gameLoop, TICK_MS);
@@ -1214,6 +1266,15 @@ playAgainBtn.addEventListener('click', (event) => {
     event.currentTarget.blur();
     resetGame();
     startGame();
+});
+
+// Music button (under the game): switch the background music on or off.
+// muted keeps the music playing silently, so switching it back on carries on where it was.
+musicBtn.addEventListener('click', (event) => {
+    event.currentTarget.blur();
+    musicOn = !musicOn;
+    musicEl.muted = !musicOn;
+    musicBtn.textContent = musicOn ? 'Music: On' : 'Music: Off';
 });
 
 // =====================================================

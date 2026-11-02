@@ -17,7 +17,7 @@ OUT=img/sprites
 # Map objects
 "$PYTHON" tools/make_sprite.py $SRC/house.png      $OUT/house.png      --width 120 --key   # fake checkerboard background
 "$PYTHON" tools/make_sprite.py $SRC/tree.png       $OUT/tree.png       --height 96
-"$PYTHON" tools/make_sprite.py $SRC/pump.png       $OUT/pump.png       --height 134
+"$PYTHON" tools/make_sprite.py $SRC/pump.png       $OUT/pump.png       --height 67
 "$PYTHON" tools/make_sprite.py $SRC/pond-clean.png $OUT/pond-clean.png --width 276
 
 # This file holds two ponds side by side: dried (left) and dirty (right)

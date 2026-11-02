@@ -132,7 +132,9 @@
                 <img src="img/cw_logo_horizontal.png" alt="charity: water">
             </div>
             <p id="win-message"></p>
-            <p class="fact">In Africa alone, women spend 40 billion hours a year walking for water.</p>
+            <!-- Source: UNICEF press release, August 2016 ("Collecting water is often a colossal
+                 waste of time for women and girls") -->
+            <p class="fact">Every day, women and girls around the world spend 200 million hours collecting water.</p>
             <a class="learn-more" href="https://www.charitywater.org" target="_blank" rel="noopener">Learn more about charity:&nbsp;water</a>
             <button id="play-again-btn">Play Again</button>
             <button class="change-difficulty-btn">Change Difficulty</button>
@@ -143,6 +145,8 @@
     <!-- Controls under the game box (outside #game so they never cover the map) -->
     <div id="controls-bar">
         <button id="reset-btn">Reset</button>
+        <!-- Turns the background music on and off (script.js changes the text) -->
+        <button id="music-btn">Music: On</button>
     </div>
 
     <!-- Footer: links to charity: water. They open in a new tab, so the game keeps its place. -->
@@ -152,7 +156,12 @@
             <a href="https://www.charitywater.org" target="_blank" rel="noopener">Learn about charity:&nbsp;water</a>
             <a href="https://www.charitywater.org/donate" target="_blank" rel="noopener">Donate</a>
         </nav>
+        <p class="music-credit">Music by AlkaKrab (YouTube)</p>
     </footer>
+
+    <!-- Background music: a short piece that loops (repeats) for as long as it plays.
+         script.js starts it when a game starts and fades it out when the game ends. -->
+    <audio id="music" src="audio/music-loop.m4a" loop preload="auto"></audio>
 
     <!-- map-generator.js first: script.js uses it to build a new map for every game -->
     <script src="map-generator.js"></script>
